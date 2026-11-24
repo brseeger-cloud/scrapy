@@ -89,6 +89,7 @@ def test_find_websites(sites, tmp_path):
     ]  # fmt: skip
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
     assert result.returncode == 0, result.stderr
+    assert "Started." in result.stdout and "3 of 3 firms done, 2 websites found" in result.stdout
 
     with firms.open(newline="") as fh:
         out = {r["firm_name"]: r for r in csv.DictReader(fh)}

@@ -34,6 +34,14 @@ from .unsubscribe import load_unsubscribed, strip_unsubscribed
 
 logger = logging.getLogger(__name__)
 
+PROGRESS_EVERY = 100  # firms between progress lines in the console
+
+
+def _progress(done: int, total: int, details: str) -> None:
+    """Print a progress line to the console (the full log goes to the log file)."""
+    if done % PROGRESS_EVERY == 0 or done == total:
+        print(f"{datetime.now():%H:%M}  {done:,} of {total:,} firms done{details}", flush=True)
+
 
 class DoNotContactPipeline:
     def __init__(self, crawler):
@@ -134,6 +142,13 @@ class ExcelExportPipeline:
 
     def process_item(self, item):
         self.rows.append(dict(item))
+        stats = self.crawler.stats
+        total = (
+            stats.get_value("lawfirm/firms_in_input", 0)
+            - stats.get_value("lawfirm/dnc_excluded", 0)
+            - stats.get_value("lawfirm/skipped_recent", 0)
+        )
+        _progress(len(self.rows), total, f", {stats.get_value('lawfirm/sites_failed', 0):,} sites failed")
         return item
 
     def close_spider(self):
@@ -206,6 +221,9 @@ class ExcelExportPipeline:
         logger.info(f"Wrote {len(rows)} rows to {xlsx}; {len(failed)} failed sites logged to {csv_path}")
 
 
+_WEBSITE_FOUND_KEYS = ("ABN_on_site", "name_on_site", "name_on_site_(location_unconfirmed)")
+
+
 class WebsiteListPipeline:
     """Writes websites found by the "websites" spider back into firms.csv.
 
@@ -231,7 +249,12 @@ class WebsiteListPipeline:
             row["website"] = item["website"]
         row["website_found_by"] = item["found_by"]
         row["website_checked"] = datetime.now().date().isoformat()
-        self.crawler.stats.inc_value(f"websites/{item['found_by'].replace(' ', '_')}")
+        stats = self.crawler.stats
+        stats.inc_value(f"websites/{item['found_by'].replace(' ', '_')}")
+        stats.inc_value("websites/done")
+        found = sum(stats.get_value(f"websites/{k}", 0) for k in _WEBSITE_FOUND_KEYS)
+        _progress(stats.get_value("websites/done"), stats.get_value("websites/firms_to_check", 0),
+                  f", {found:,} websites found")  # fmt: skip
         self.unsaved += 1
         if self.unsaved >= self.SAVE_EVERY:
             self._save()

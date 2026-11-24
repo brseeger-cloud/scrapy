@@ -88,6 +88,11 @@ def main(argv: list[str] | None = None) -> int:
     process = CrawlerProcess(settings)
     crawler = process.create_crawler("firms")
     process.crawl(crawler, input=args.input, dnc=args.dnc)
+    print(
+        f"Started. This can take hours: progress is shown every 100 firms. Leave this window open.\n"
+        f"Full log: {log_file}",
+        flush=True,
+    )
     process.start()
 
     stats = crawler.stats.get_stats() if crawler.stats else {}

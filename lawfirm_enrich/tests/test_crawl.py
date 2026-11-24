@@ -69,6 +69,7 @@ def test_full_run(sites, tmp_path):
     )
     log = "".join(p.read_text() for p in (tmp_path / "logs").glob("*.log"))
     assert result.returncode == 0, result.stderr + log
+    assert "10 of 10 firms done, 2 sites failed" in result.stdout  # 11 firms, 1 on the do-not-contact list
 
     # do-not-contact: never requested, not in output
     assert sites["optedout"].requests == []
