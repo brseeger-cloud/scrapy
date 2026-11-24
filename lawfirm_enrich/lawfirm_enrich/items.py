@@ -67,7 +67,7 @@ def build_row(
     date_collected: str,
     error: str = "",
 ) -> dict:
-    row = {c: "" for c in OUTPUT_COLUMNS}
+    row = dict.fromkeys(OUTPUT_COLUMNS, "")
     row.update(firm.as_dict())
     row["input_row"] = firm.row
     row["classification"] = classification.classification

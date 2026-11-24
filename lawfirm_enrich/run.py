@@ -1,7 +1,7 @@
 """Run the whole enrichment: crawl, classify, write firms_enriched.xlsx.
 
-    python run.py                       # uses firms.csv and do_not_contact.csv
-    python run.py --input my_firms.csv --output out/enriched.xlsx
+python run.py                       # uses firms.csv and do_not_contact.csv
+python run.py --input my_firms.csv --output out/enriched.xlsx
 """
 
 from __future__ import annotations
@@ -22,8 +22,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", default="output/firms_enriched.xlsx", help="output workbook")
     parser.add_argument("--failed-log", default="output/failed_sites.csv", help="failed-sites CSV")
     parser.add_argument("--log-dir", default="logs", help="directory for the Scrapy log file")
-    parser.add_argument("-s", "--set", action="append", default=[], metavar="NAME=VALUE",
-                        help="override any Scrapy setting, e.g. -s CONCURRENT_REQUESTS=8")
+    parser.add_argument(
+        "-s",
+        "--set",
+        action="append",
+        default=[],
+        metavar="NAME=VALUE",
+        help="override any Scrapy setting, e.g. -s CONCURRENT_REQUESTS=8",
+    )
     args = parser.parse_args(argv)
 
     for label, path in (("input", args.input), ("do-not-contact", args.dnc)):
@@ -62,8 +68,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Log file:      {log_file}")
     print(f"Workbook:      {args.output}")
     print(f"Failed sites:  {args.failed_log}")
-    print(f"Sites OK / failed / on do-not-contact list: {stats.get('lawfirm/sites_ok', 0)} / "
-          f"{stats.get('lawfirm/sites_failed', 0)} / {stats.get('lawfirm/dnc_excluded', 0)}")
+    print(
+        f"Sites OK / failed / on do-not-contact list: {stats.get('lawfirm/sites_ok', 0)} / "
+        f"{stats.get('lawfirm/sites_failed', 0)} / {stats.get('lawfirm/dnc_excluded', 0)}"
+    )
     if stats.get("finish_reason") not in (None, "finished"):
         print(f"Crawl ended early: {stats.get('finish_reason')} (see log)", file=sys.stderr)
         return 1

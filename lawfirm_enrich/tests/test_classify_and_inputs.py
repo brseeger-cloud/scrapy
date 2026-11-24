@@ -22,15 +22,15 @@ def test_size_buckets(count, basis, expected):
 
 
 def test_strong_signal_excludes():
-    a = Analysis(solicitor_count=3, count_basis="team page listing",
-                 signals=[Signal("government", "strong", "gov domain")])
+    a = Analysis(
+        solicitor_count=3, count_basis="team page listing", signals=[Signal("government", "strong", "gov domain")]
+    )
     c = classify(a)
     assert (c.classification, c.exclude_reason) == (EXCLUDE, "government")
 
 
 def test_weak_signal_needs_manual_check():
-    a = Analysis(solicitor_count=3, count_basis="team page listing",
-                 signals=[Signal("in-house", "weak", "text")])
+    a = Analysis(solicitor_count=3, count_basis="team page listing", signals=[Signal("in-house", "weak", "text")])
     assert classify(a).classification == CHECK
 
 
@@ -60,8 +60,10 @@ def test_normalise_url(website, url):
 
 def test_dnc_matching(tmp_path):
     p = tmp_path / "dnc.csv"
-    p.write_text("firm_name,abn,website,reason,date_added\n"
-                 "Opted Out Lawyers Pty Ltd,,,,\n,12 345 678 901,,,\n,,https://www.blocked.example/x,,\n")
+    p.write_text(
+        "firm_name,abn,website,reason,date_added\n"
+        "Opted Out Lawyers Pty Ltd,,,,\n,12 345 678 901,,,\n,,https://www.blocked.example/x,,\n"
+    )
     dnc = DoNotContactList.load(p)
     assert dnc.matches(firm_name="opted out lawyers")
     assert dnc.matches(abn="12345678901")
@@ -84,7 +86,9 @@ def test_read_firms_requires_columns(tmp_path):
 
 def test_read_firms_ignores_extra_columns(tmp_path):
     p = tmp_path / "f.csv"
-    p.write_text("﻿firm_name,abn,entity_type,state,postcode,website,email\n"
-                 "A Law,1,Company,NSW,2000,a.example,someone@a.example\n\n")
+    p.write_text(
+        "﻿firm_name,abn,entity_type,state,postcode,website,email\n"
+        "A Law,1,Company,NSW,2000,a.example,someone@a.example\n\n"
+    )
     (firm,) = read_firms(p)
     assert "someone" not in repr(firm.as_dict())

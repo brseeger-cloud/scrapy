@@ -85,10 +85,7 @@ def test_classify_role(role, lawyer, principal):
 
 
 def test_people_role_after_name():
-    p = page(
-        "<h3>Jane Smith</h3><p>Principal</p><h3>John Lee</h3><p>Solicitor</p>"
-        "<h3>Amy Wu</h3><p>Paralegal</p>"
-    )
+    p = page("<h3>Jane Smith</h3><p>Principal</p><h3>John Lee</h3><p>Solicitor</p><h3>Amy Wu</h3><p>Paralegal</p>")
     people = {x.name: x for x in extract_people(p)}
     assert set(people) == {"Jane Smith", "John Lee", "Amy Wu"}
     assert people["Jane Smith"].is_principal
@@ -126,7 +123,12 @@ def test_practice_areas():
         "workers compensation, shareholder agreements and drink driving charges."
     )
     assert extract_practice_areas(text) == [
-        "Conveyancing", "Wills & Estates", "Family", "Personal Injury", "Commercial", "Criminal",
+        "Conveyancing",
+        "Wills & Estates",
+        "Family",
+        "Personal Injury",
+        "Commercial",
+        "Criminal",
     ]
 
 
@@ -149,8 +151,12 @@ def test_stated_count(text, count):
 def test_address_prefers_contact_page_and_finds_po_box():
     pages = [
         page("<p>Visit us at 1 Other Road, Penrith NSW 2750</p>", "home", "https://f.example/"),
-        page("<address>Level 2, 45 Smith Street<br>Parramatta NSW 2150</address>"
-             "<p>Postal address: PO Box 123, Parramatta NSW 2124</p>", "contact", "https://f.example/contact"),
+        page(
+            "<address>Level 2, 45 Smith Street<br>Parramatta NSW 2150</address>"
+            "<p>Postal address: PO Box 123, Parramatta NSW 2124</p>",
+            "contact",
+            "https://f.example/contact",
+        ),
     ]
     addr = extract_address(pages)
     assert addr.street == "Level 2, 45 Smith Street, Parramatta NSW 2150"
@@ -163,8 +169,10 @@ def test_address_prefers_contact_page_and_finds_po_box():
 def test_analyse_counts_and_principals():
     pages = [
         page("<p>Founded by Robert Example in 1985.</p>", "about", "https://f.example/about"),
-        page("<h3>Robert Example</h3><p>Managing Partner</p><h3>Priya Sharma</h3><p>Solicitor</p>"
-             "<h3>Emma Jones</h3><p>Paralegal</p>"),
+        page(
+            "<h3>Robert Example</h3><p>Managing Partner</p><h3>Priya Sharma</h3><p>Solicitor</p>"
+            "<h3>Emma Jones</h3><p>Paralegal</p>"
+        ),
     ]
     a = analyse("Example Partners", "Australian Private Company", "f.example", pages)
     assert a.solicitor_count == 2

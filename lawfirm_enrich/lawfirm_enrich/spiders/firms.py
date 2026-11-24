@@ -47,8 +47,11 @@ _LINK_RULES = {
         re.compile(r"about|who-?we-?are|our-?firm|the-?firm|our-?story|firm-?profile|history", re.I),
     ),
     "team": (
-        re.compile(r"\bteam\b|\bpeople\b|our lawyers|\blawyers\b|\bsolicitors\b|\bstaff\b|meet (?:the|our)|"
-                   r"professionals|\bpartners\b|who'?s who|our practitioners", re.I),
+        re.compile(
+            r"\bteam\b|\bpeople\b|our lawyers|\blawyers\b|\bsolicitors\b|\bstaff\b|meet (?:the|our)|"
+            r"professionals|\bpartners\b|who'?s who|our practitioners",
+            re.I,
+        ),
         re.compile(r"team|people|lawyers|solicitors|staff|professionals|partners|practitioners|meet-", re.I),
     ),
     "contact": (
@@ -142,7 +145,9 @@ class FirmsSpider(scrapy.Spider):
                 continue
             if not firm.url:
                 stats.inc_value("lawfirm/no_website")
-                yield self._row(FirmState(firm, self.max_pages), status="no website", error="no usable website in input")
+                yield self._row(
+                    FirmState(firm, self.max_pages), status="no website", error="no usable website in input"
+                )
                 continue
             state = FirmState(firm, self.max_pages, hosts={host_of(firm.url)})
             yield self._request(state, firm.url, "home")
@@ -224,7 +229,7 @@ class FirmsSpider(scrapy.Spider):
                 and not failure.check(HttpError, CannotResolveHostError, IgnoreRequest)
             ):
                 state.http_fallback_done = True
-                yield self._request(state, "http://" + request.url[len("https://"):], "home")
+                yield self._request(state, "http://" + request.url[len("https://") :], "home")
                 return
             state.home_error = reason
             state.failed.append(f"{request.url} ({reason})")
@@ -232,8 +237,11 @@ class FirmsSpider(scrapy.Spider):
             return
 
         # A guessed path that does not exist is expected, not a failure.
-        guess_missing = request.url in state.guessed_urls and failure.check(HttpError) and \
-            failure.value.response.status in (404, 410)
+        guess_missing = (
+            request.url in state.guessed_urls
+            and failure.check(HttpError)
+            and failure.value.response.status in (404, 410)
+        )
         if not guess_missing:
             state.failed.append(f"{request.url} ({reason})")
         yield from self._next(state)

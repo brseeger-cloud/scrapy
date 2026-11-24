@@ -37,10 +37,29 @@ def test_full_run(sites, tmp_path):
     failed = tmp_path / "failed.csv"
 
     result = subprocess.run(
-        [sys.executable, str(ROOT / "run.py"), "--input", str(firms), "--dnc", str(dnc), "--output", str(out),
-         "--failed-log", str(failed), "--log-dir", str(tmp_path / "logs"),
-         "-s", "DOWNLOAD_DELAY=0", "-s", "AUTOTHROTTLE_ENABLED=False", "-s", "DOWNLOAD_TIMEOUT=5"],
-        capture_output=True, text=True, timeout=180,
+        [
+            sys.executable,
+            str(ROOT / "run.py"),
+            "--input",
+            str(firms),
+            "--dnc",
+            str(dnc),
+            "--output",
+            str(out),
+            "--failed-log",
+            str(failed),
+            "--log-dir",
+            str(tmp_path / "logs"),
+            "-s",
+            "DOWNLOAD_DELAY=0",
+            "-s",
+            "AUTOTHROTTLE_ENABLED=False",
+            "-s",
+            "DOWNLOAD_TIMEOUT=5",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=180,
     )
     log = "".join(p.read_text() for p in (tmp_path / "logs").glob("*.log"))
     assert result.returncode == 0, result.stderr + log
@@ -55,7 +74,10 @@ def test_full_run(sites, tmp_path):
     wb = load_workbook(out)
     ws = wb["Firms"]
     header = [c.value for c in ws[1]]
-    data = {r[header.index("firm_name")]: dict(zip(header, r)) for r in ws.iter_rows(min_row=2, values_only=True)}
+    data = {
+        r[header.index("firm_name")]: dict(zip(header, r, strict=False))
+        for r in ws.iter_rows(min_row=2, values_only=True)
+    }
     assert "Opted Out Lawyers" not in data
     assert len(data) == len(rows) - 1
 
@@ -93,8 +115,14 @@ def test_full_run(sites, tmp_path):
     assert small["solicitor_count"] == 3
     assert small["principal_names"] == "Alice Nguyen"
 
-    assert (data["John Smith SC"]["classification"], data["John Smith SC"]["exclude_reason"]) == ("Exclude", "barrister")
-    assert (data["Sunrise Bakery"]["classification"], data["Sunrise Bakery"]["exclude_reason"]) == ("Exclude", "not a law firm")
+    assert (data["John Smith SC"]["classification"], data["John Smith SC"]["exclude_reason"]) == (
+        "Exclude",
+        "barrister",
+    )
+    assert (data["Sunrise Bakery"]["classification"], data["Sunrise Bakery"]["exclude_reason"]) == (
+        "Exclude",
+        "not a law firm",
+    )
     assert data["Quick Conveyancing"]["exclude_reason"] == "licensed conveyancer"
 
     assert data["Blocked Lawyers"]["classification"] == "Check manually"

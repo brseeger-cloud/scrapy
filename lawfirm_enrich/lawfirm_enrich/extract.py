@@ -20,10 +20,41 @@ from .privacy import scrub_emails
 
 _DROP_TAGS = {"script", "style", "noscript", "svg", "template", "iframe", "head", "object", "canvas"}
 _BLOCK_TAGS = {
-    "address", "article", "aside", "blockquote", "br", "dd", "div", "dl", "dt",
-    "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6",
-    "header", "hr", "li", "main", "nav", "ol", "p", "section", "table", "td", "th",
-    "tr", "ul", "button", "label", "option",
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "br",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hr",
+    "li",
+    "main",
+    "nav",
+    "ol",
+    "p",
+    "section",
+    "table",
+    "td",
+    "th",
+    "tr",
+    "ul",
+    "button",
+    "label",
+    "option",
 }
 
 
@@ -98,44 +129,295 @@ _NAME_TOKEN_RE = re.compile(
 )
 _PARTICLES = {"van", "der", "de", "da", "di", "von", "le", "la", "du", "del", "bin", "binti", "al", "el", "ten", "ter"}
 _POSTNOMINALS = {
-    "llb", "llm", "ba", "bcom", "bec", "bbus", "bsc", "bjuris", "blaws", "ma", "mba", "jd", "phd",
-    "gdlp", "gdlpp", "gradcert", "graddip", "dip", "hons", "am", "oam", "ao", "sc", "qc", "kc",
-    "fca", "cpa", "cta", "tep", "accspec", "mappsc", "llb/ba", "ba/llb", "bcom/llb", "llb(hons)",
-    "acc.", "spec", "(hons)", "jp",
+    "llb",
+    "llm",
+    "ba",
+    "bcom",
+    "bec",
+    "bbus",
+    "bsc",
+    "bjuris",
+    "blaws",
+    "ma",
+    "mba",
+    "jd",
+    "phd",
+    "gdlp",
+    "gdlpp",
+    "gradcert",
+    "graddip",
+    "dip",
+    "hons",
+    "am",
+    "oam",
+    "ao",
+    "sc",
+    "qc",
+    "kc",
+    "fca",
+    "cpa",
+    "cta",
+    "tep",
+    "accspec",
+    "mappsc",
+    "llb/ba",
+    "ba/llb",
+    "bcom/llb",
+    "llb(hons)",
+    "acc.",
+    "spec",
+    "(hons)",
+    "jp",
 }
 _NAME_STOPWORDS = {
     # generic page words
-    "about", "us", "our", "the", "and", "of", "for", "with", "in", "at", "to", "by", "a", "an", "is",
-    "team", "people", "staff", "contact", "home", "news", "blog", "read", "more", "view", "profile",
-    "call", "today", "now", "book", "appointment", "free", "consultation", "click", "here", "menu",
-    "search", "privacy", "policy", "terms", "conditions", "copyright", "rights", "reserved",
-    "welcome", "testimonials", "faq", "faqs", "careers", "location", "locations", "find", "get",
-    "touch", "phone", "fax", "email", "mobile", "enquiry", "enquiries", "send", "message", "submit",
-    "name", "address", "dear", "kind", "regards", "hello", "best", "meet", "learn", "how", "we",
-    "help", "you", "your", "why", "choose", "what", "who", "client", "clients", "service",
-    "services", "areas", "area", "office", "offices", "hours", "opening", "map", "directions",
-    "level", "suite", "po", "box", "street", "road", "st", "rd", "avenue", "parade", "lane",
+    "about",
+    "us",
+    "our",
+    "the",
+    "and",
+    "of",
+    "for",
+    "with",
+    "in",
+    "at",
+    "to",
+    "by",
+    "a",
+    "an",
+    "is",
+    "team",
+    "people",
+    "staff",
+    "contact",
+    "home",
+    "news",
+    "blog",
+    "read",
+    "more",
+    "view",
+    "profile",
+    "call",
+    "today",
+    "now",
+    "book",
+    "appointment",
+    "free",
+    "consultation",
+    "click",
+    "here",
+    "menu",
+    "search",
+    "privacy",
+    "policy",
+    "terms",
+    "conditions",
+    "copyright",
+    "rights",
+    "reserved",
+    "welcome",
+    "testimonials",
+    "faq",
+    "faqs",
+    "careers",
+    "location",
+    "locations",
+    "find",
+    "get",
+    "touch",
+    "phone",
+    "fax",
+    "email",
+    "mobile",
+    "enquiry",
+    "enquiries",
+    "send",
+    "message",
+    "submit",
+    "name",
+    "address",
+    "dear",
+    "kind",
+    "regards",
+    "hello",
+    "best",
+    "meet",
+    "learn",
+    "how",
+    "we",
+    "help",
+    "you",
+    "your",
+    "why",
+    "choose",
+    "what",
+    "who",
+    "client",
+    "clients",
+    "service",
+    "services",
+    "areas",
+    "area",
+    "office",
+    "offices",
+    "hours",
+    "opening",
+    "map",
+    "directions",
+    "level",
+    "suite",
+    "po",
+    "box",
+    "street",
+    "road",
+    "st",
+    "rd",
+    "avenue",
+    "parade",
+    "lane",
     # legal / business words
-    "law", "laws", "lawyer", "lawyers", "legal", "solicitor", "solicitors", "firm", "practice",
-    "practices", "partners", "partner", "associates", "associate", "principal", "director",
-    "directors", "counsel", "barrister", "barristers", "chambers", "attorney", "attorneys",
-    "pty", "ltd", "limited", "group", "company", "co", "family", "wills", "will", "estates",
-    "estate", "probate", "property", "conveyancing", "commercial", "criminal", "injury",
-    "personal", "business", "accident", "accidents", "compensation", "claims", "employment",
-    "dispute", "disputes", "litigation", "migration", "immigration", "planning", "accredited",
-    "specialist", "specialists", "member", "society", "court", "courts", "high", "federal",
-    "supreme", "district", "local", "magistrates", "tribunal", "senior", "special", "managing",
-    "consultant", "paralegal", "clerk", "assistant", "secretary", "receptionist", "manager",
-    "support", "insights", "resources", "corporate", "leasing", "traffic", "divorce",
+    "law",
+    "laws",
+    "lawyer",
+    "lawyers",
+    "legal",
+    "solicitor",
+    "solicitors",
+    "firm",
+    "practice",
+    "practices",
+    "partners",
+    "partner",
+    "associates",
+    "associate",
+    "principal",
+    "director",
+    "directors",
+    "counsel",
+    "barrister",
+    "barristers",
+    "chambers",
+    "attorney",
+    "attorneys",
+    "pty",
+    "ltd",
+    "limited",
+    "group",
+    "company",
+    "co",
+    "family",
+    "wills",
+    "will",
+    "estates",
+    "estate",
+    "probate",
+    "property",
+    "conveyancing",
+    "commercial",
+    "criminal",
+    "injury",
+    "personal",
+    "business",
+    "accident",
+    "accidents",
+    "compensation",
+    "claims",
+    "employment",
+    "dispute",
+    "disputes",
+    "litigation",
+    "migration",
+    "immigration",
+    "planning",
+    "accredited",
+    "specialist",
+    "specialists",
+    "member",
+    "society",
+    "court",
+    "courts",
+    "high",
+    "federal",
+    "supreme",
+    "district",
+    "local",
+    "magistrates",
+    "tribunal",
+    "senior",
+    "special",
+    "managing",
+    "consultant",
+    "paralegal",
+    "clerk",
+    "assistant",
+    "secretary",
+    "receptionist",
+    "manager",
+    "support",
+    "insights",
+    "resources",
+    "corporate",
+    "leasing",
+    "traffic",
+    "divorce",
     # places
-    "australia", "australian", "nsw", "vic", "qld", "wa", "sa", "tas", "nt", "act", "sydney",
-    "melbourne", "brisbane", "perth", "adelaide", "hobart", "darwin", "canberra", "victoria",
-    "queensland", "tasmania", "new", "south", "wales", "western", "northern", "territory",
-    "capital", "gold", "coast", "sunshine", "central", "north", "east", "west", "city", "cbd",
+    "australia",
+    "australian",
+    "nsw",
+    "vic",
+    "qld",
+    "wa",
+    "sa",
+    "tas",
+    "nt",
+    "act",
+    "sydney",
+    "melbourne",
+    "brisbane",
+    "perth",
+    "adelaide",
+    "hobart",
+    "darwin",
+    "canberra",
+    "victoria",
+    "queensland",
+    "tasmania",
+    "new",
+    "south",
+    "wales",
+    "western",
+    "northern",
+    "territory",
+    "capital",
+    "gold",
+    "coast",
+    "sunshine",
+    "central",
+    "north",
+    "east",
+    "west",
+    "city",
+    "cbd",
     # dates
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-    "january", "february", "march", "april", "may", "june", "july", "august", "september",
-    "october", "november", "december",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
 }
 
 _STRONG_LAWYER_RE = re.compile(
@@ -192,9 +474,7 @@ def classify_role(role: str) -> tuple[bool, bool]:
         is_lawyer = True
     else:
         is_lawyer = False
-    is_principal = bool(
-        is_lawyer and _PRINCIPAL_ROLE_RE.search(stripped) and not _NOT_PRINCIPAL_RE.search(role)
-    )
+    is_principal = bool(is_lawyer and _PRINCIPAL_ROLE_RE.search(stripped) and not _NOT_PRINCIPAL_RE.search(role))
     return is_lawyer, is_principal
 
 
@@ -269,7 +549,7 @@ def parse_person_line(line: str) -> tuple[str, str] | None:
 def extract_people(page: Page) -> list[Person]:
     """Find a staff listing on a page: names paired with job titles."""
     lines = page.lines
-    parsed = [parse_person_line(l) for l in lines]
+    parsed = [parse_person_line(line) for line in lines]
 
     def role_at(i: int) -> str | None:
         if 0 <= i < len(lines) and parsed[i] is None and is_role_text(lines[i]) and len(lines[i]) <= 70:
@@ -345,14 +625,33 @@ def extract_inline_principals(page: Page) -> list[str]:
 
 
 _NUMBER_WORDS = {
-    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
-    "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "fifteen": 15, "twenty": 20,
-    "thirty": 30, "forty": 40, "fifty": 50,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "fifteen": 15,
+    "twenty": 20,
+    "thirty": 30,
+    "forty": 40,
+    "fifty": 50,
 }
 _COUNT_WORD = r"(\d{1,3}|" + "|".join(_NUMBER_WORDS) + r")\+?"
-_ADJ = r"(?:(?:experienced|dedicated|specialist|qualified|expert|skilled|talented|friendly|senior|highly|accredited)\s+)*"
+_ADJ = (
+    r"(?:(?:experienced|dedicated|specialist|qualified|expert|skilled|talented|friendly|senior|highly|accredited)\s+)*"
+)
 _STATED_COUNT_RES = [
-    re.compile(rf"\b(?:team|group) of (?:over |more than |around |about )?{_COUNT_WORD}\s+{_ADJ}(?:lawyers|solicitors|legal practitioners|legal professionals)\b", re.I),
+    re.compile(
+        rf"\b(?:team|group) of (?:over |more than |around |about )?{_COUNT_WORD}\s+{_ADJ}(?:lawyers|solicitors|legal practitioners|legal professionals)\b",
+        re.I,
+    ),
     re.compile(rf"\bour {_COUNT_WORD}\s+{_ADJ}(?:lawyers|solicitors|partners)\b", re.I),
     re.compile(rf"\b{_COUNT_WORD}\s+{_ADJ}(?:lawyers|solicitors)\s+(?:and|who|with|across|in|on)\b", re.I),
 ]
@@ -453,10 +752,15 @@ _STREET_TYPES = (
 )
 _STREET_RE = re.compile(
     r"(?:(?:Level|Lvl|Suite|Shop|Unit|Office|Ground Floor|Floor)\s*\d*[A-Z]?\s*[,/]?\s*)?"
-    r"\b\d+[A-Z]?(?:\s*[-/]\s*\d+[A-Z]?)?\s+(?:[A-Z][A-Za-z'’\-]+\s+){1,4}" + _STREET_TYPES +
-    r"\b\.?(?:\s*,\s*|\s+)(?:[A-Z][A-Za-z'’\-]+\s*){1,4},?\s*" + _STATES + r"\.?,?\s*\d{4}\b"
+    r"\b\d+[A-Z]?(?:\s*[-/]\s*\d+[A-Z]?)?\s+(?:[A-Z][A-Za-z'’\-]+\s+){1,4}"
+    + _STREET_TYPES
+    + r"\b\.?(?:\s*,\s*|\s+)(?:[A-Z][A-Za-z'’\-]+\s*){1,4},?\s*"
+    + _STATES
+    + r"\.?,?\s*\d{4}\b"
 )
-_POSTAL_LABEL_RE = re.compile(r"\b(?:postal address|postal|mailing address|post to|correspondence(?: address)?)\b\s*[:\-]?", re.I)
+_POSTAL_LABEL_RE = re.compile(
+    r"\b(?:postal address|postal|mailing address|post to|correspondence(?: address)?)\b\s*[:\-]?", re.I
+)
 _POSTCODE_RE = re.compile(r"(\d{4})\b(?!.*\d{4}\b)")
 
 
@@ -488,7 +792,7 @@ def extract_address(pages: list[Page]) -> Address:
                 result.source_url = result.source_url or page.url
         if not result.postal:
             for lm in _POSTAL_LABEL_RE.finditer(joined):
-                window = joined[lm.end(): lm.end() + 160]
+                window = joined[lm.end() : lm.end() + 160]
                 m = _PO_BOX_RE.search(window) or _STREET_RE.search(window)
                 if m and m.start() < 20:
                     result.postal = _tidy(m.group(0))
@@ -539,8 +843,12 @@ _INHOUSE_RE = re.compile(r"\b(in[- ]house|legal department|general counsel|corpo
 _INHOUSE_TEXT_RE = re.compile(r"\b(?:our|the) in[- ]house legal (?:team|department|function)\b", re.I)
 _LAW_WORDS_RE = re.compile(r"\b(law|lawyers?|legal|solicitors?|attorneys?|barristers?)\b", re.I)
 _SOLICITOR_WORDS_RE = re.compile(r"\b(solicitors?|lawyers?|law firm|legal practitioners?)\b", re.I)
-_CONVEYANCER_TEXT_RE = re.compile(r"\b(?:licensed|registered|qualified|certified) conveyancers?\b|\bsettlement agents?\b", re.I)
-_ANY_LEGAL_RE = re.compile(r"\b(law|lawyers?|legal|solicitors?|barristers?|attorneys?|conveyanc\w*|litigation|court)\b", re.I)
+_CONVEYANCER_TEXT_RE = re.compile(
+    r"\b(?:licensed|registered|qualified|certified) conveyancers?\b|\bsettlement agents?\b", re.I
+)
+_ANY_LEGAL_RE = re.compile(
+    r"\b(law|lawyers?|legal|solicitors?|barristers?|attorneys?|conveyanc\w*|litigation|court)\b", re.I
+)
 _OTHER_BUSINESS_RE = re.compile(
     r"\b(registered migration agents?|migration agents?|chartered accountants?|accountants?|accounting|"
     r"tax agents?|bookkeeping|financial planners?|financial planning|mortgage brokers?|real estate agen\w+|"
@@ -548,7 +856,10 @@ _OTHER_BUSINESS_RE = re.compile(
     r"private investigators?|recruitment)\b",
     re.I,
 )
-_CLC_RE = re.compile(r"\b(community legal (?:centre|center|service)s?|aboriginal legal service|legal service(?:s)? (?:inc|incorporated))\b", re.I)
+_CLC_RE = re.compile(
+    r"\b(community legal (?:centre|center|service)s?|aboriginal legal service|legal service(?:s)? (?:inc|incorporated))\b",
+    re.I,
+)
 _PARKED_RE = re.compile(
     r"\b(this domain (?:is|may be) for sale|domain (?:is )?parked|buy this domain|website (?:is )?coming soon|"
     r"under construction|account (?:has been )?suspended|this site can'?t be reached|default web site page|"
@@ -602,11 +913,19 @@ def detect_signals(
     conv_text = _CONVEYANCER_TEXT_RE.search(text)
     if name_has_conv and not name_has_law:
         if not site_has_solicitor and lawyer_count == 0:
-            signals.append(Signal("licensed conveyancer", "strong", "conveyancing business name; no solicitors mentioned on site"))
+            signals.append(
+                Signal("licensed conveyancer", "strong", "conveyancing business name; no solicitors mentioned on site")
+            )
         else:
-            signals.append(Signal("licensed conveyancer", "weak", "conveyancing business name but site mentions solicitors/lawyers"))
+            signals.append(
+                Signal(
+                    "licensed conveyancer", "weak", "conveyancing business name but site mentions solicitors/lawyers"
+                )
+            )
     elif conv_text and not site_has_solicitor and lawyer_count == 0:
-        signals.append(Signal("licensed conveyancer", "strong", f"site text: '{conv_text.group(0)}'; no solicitors mentioned"))
+        signals.append(
+            Signal("licensed conveyancer", "strong", f"site text: '{conv_text.group(0)}'; no solicitors mentioned")
+        )
 
     # Not a law firm
     if pages and not _ANY_LEGAL_RE.search(text) and not _ANY_LEGAL_RE.search(firm_name or ""):

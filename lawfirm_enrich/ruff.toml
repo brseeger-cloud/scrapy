@@ -1,0 +1,8 @@
+# lawfirm_enrich is an application inside the Scrapy repository; it uses its own
+# lint rules rather than the library's (no docstring requirements, etc.).
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["B", "C4", "E", "F", "I", "UP", "W"]
+ignore = ["E501"]  # long regexes and data tables read better unwrapped

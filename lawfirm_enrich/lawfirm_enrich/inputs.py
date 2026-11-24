@@ -61,7 +61,9 @@ def host_of(url: str) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
-_NAME_SUFFIX_RE = re.compile(r"\b(pty\.?\s*ltd\.?|pty\.?\s*limited|proprietary limited|limited|ltd\.?|inc\.?|incorporated)\b")
+_NAME_SUFFIX_RE = re.compile(
+    r"\b(pty\.?\s*ltd\.?|pty\.?\s*limited|proprietary limited|limited|ltd\.?|inc\.?|incorporated)\b"
+)
 
 
 def normalise_name(name: str) -> str:
@@ -130,7 +132,7 @@ class DoNotContactList:
         return len(self.abns) + len(self.domains) + len(self.names)
 
     @classmethod
-    def load(cls, path: str | Path) -> "DoNotContactList":
+    def load(cls, path: str | Path) -> DoNotContactList:
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(

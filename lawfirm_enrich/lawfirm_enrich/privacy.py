@@ -40,9 +40,7 @@ def scrub_emails(text: str) -> str:
 def contains_email(text: str) -> bool:
     if not text:
         return False
-    return bool(
-        _EMAIL_RE.search(text) or _ENCODED_RE.search(text) or _OBFUSCATED_RE.search(text)
-    )
+    return bool(_EMAIL_RE.search(text) or _ENCODED_RE.search(text) or _OBFUSCATED_RE.search(text))
 
 
 def scrub_value(value: Any) -> Any:

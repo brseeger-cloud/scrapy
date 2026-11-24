@@ -16,8 +16,17 @@ from .privacy import contains_email, scrub_emails
 
 logger = logging.getLogger(__name__)
 
-_WIDE = {"classification_notes": 60, "pages_used": 60, "pages_failed": 50, "principal_names": 35,
-         "practice_areas": 40, "postal_address": 40, "street_address": 40, "po_box": 30, "firm_name": 35}
+_WIDE = {
+    "classification_notes": 60,
+    "pages_used": 60,
+    "pages_failed": 50,
+    "principal_names": 35,
+    "practice_areas": 40,
+    "postal_address": 40,
+    "street_address": 40,
+    "po_box": 30,
+    "firm_name": 35,
+}
 _WRAP = {"classification_notes", "pages_used", "pages_failed"}
 _FILLS = {
     "Sole": "DDEBF7",
@@ -61,8 +70,15 @@ def _write_sheet(ws, columns: list[str], rows: list[dict]) -> None:
     ws.auto_filter.ref = ws.dimensions
 
 
-def write_workbook(path: str | Path, *, columns: list[str], rows: list[dict], failed_columns: list[str],
-                   failed_rows: list[dict], run_info: list[tuple[str, object]]) -> Path:
+def write_workbook(
+    path: str | Path,
+    *,
+    columns: list[str],
+    rows: list[dict],
+    failed_columns: list[str],
+    failed_rows: list[dict],
+    run_info: list[tuple[str, object]],
+) -> Path:
     wb = Workbook()
     ws = wb.active
     ws.title = "Firms"
