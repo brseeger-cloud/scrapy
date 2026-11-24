@@ -149,7 +149,7 @@ def test_full_run(sites, tmp_path):
 
     info = {r[0]: r[1] for r in wb["Run info"].iter_rows(min_row=2, values_only=True)}
     assert info["excluded: on do-not-contact list (not crawled, not in output)"] == 1
-    assert info["user agent"] == "LawAuditResearch (audit@lawaudit.com.au)"
+    assert info["user agent"] == "LawAudit (audit@lawaudit.com.au)"
 
     # master list: one row per firm (do-not-contact firm left out)
     master = load_workbook(tmp_path / "master.xlsx")["Firms"]

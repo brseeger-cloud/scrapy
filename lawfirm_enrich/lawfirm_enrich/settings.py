@@ -6,7 +6,7 @@ SPIDER_MODULES = ["lawfirm_enrich.spiders"]
 NEWSPIDER_MODULE = "lawfirm_enrich.spiders"
 
 # --- Identification & politeness (required by the brief) -------------------
-USER_AGENT = "LawAuditResearch (audit@lawaudit.com.au)"
+USER_AGENT = "LawAudit (audit@lawaudit.com.au)"
 ROBOTSTXT_OBEY = True
 
 DOWNLOAD_DELAY = 2  # seconds between requests to the same site

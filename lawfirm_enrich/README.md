@@ -70,7 +70,7 @@ Set in `lawfirm_enrich/settings.py`:
 | `AUTOTHROTTLE_ENABLED` | `True` (start 2s, max 30s) |
 | `DOWNLOAD_DELAY` | `2` seconds (not randomised, so it is a true minimum) |
 | `CONCURRENT_REQUESTS_PER_DOMAIN` | `1` |
-| `USER_AGENT` | `LawAuditResearch (audit@lawaudit.com.au)` |
+| `USER_AGENT` | `LawAudit (audit@lawaudit.com.au)` |
 | `RETRY_TIMES` | `2` |
 | `DOWNLOAD_TIMEOUT` / `DNS_TIMEOUT` | `20` seconds |
 | `HTTPCACHE_ENABLED`, `COOKIES_ENABLED` | `False` |
