@@ -50,7 +50,7 @@ TRACKED_COLUMNS = [
     "principal_names",
     "practice_areas",
     "postal_address",
-    "street_address",
+    "office_address",
     "email",
     "crawl_status",
 ]
@@ -247,7 +247,7 @@ def _write(ws, columns: list[str], rows) -> None:
                 "classification_notes",
                 "pages_used",
                 "postal_address",
-                "street_address",
+                "office_address",
                 "my_notes",
                 "old_value",
                 "new_value",

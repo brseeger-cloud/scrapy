@@ -21,6 +21,7 @@ from scrapy.exceptions import (
 from scrapy.http import HtmlResponse
 from scrapy.spidermiddlewares.httperror import HttpError
 
+from ..addresses import find_structured
 from ..classify import classify
 from ..emails import extract_emails
 from ..extract import Page, analyse, html_to_lines
@@ -229,6 +230,7 @@ class FirmsSpider(scrapy.Spider):
             category=category,
             lines=html_to_lines(root=response.selector.root),
             emails=extract_emails(response.selector.root, state.hosts),
+            structured_addresses=find_structured(response.selector.root),
         )
         state.pages.append(page)
         self._discover_links(response, state)

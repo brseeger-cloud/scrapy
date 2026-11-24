@@ -24,11 +24,12 @@ _WIDE = {
     "principal_names": 35,
     "practice_areas": 40,
     "postal_address": 40,
-    "street_address": 40,
+    "office_address": 40,
+    "other_office_addresses": 40,
     "po_box": 30,
     "firm_name": 35,
 }
-_WRAP = {"classification_notes", "pages_used", "pages_failed"}
+_WRAP = {"classification_notes", "pages_used", "pages_failed", "other_office_addresses"}
 _FILLS = {
     "Sole": "DDEBF7",
     "Small (2-4)": "E2EFDA",

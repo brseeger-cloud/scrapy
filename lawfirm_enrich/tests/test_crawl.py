@@ -99,7 +99,7 @@ def test_full_run(sites, tmp_path):
     assert sole["classification"] == "Sole"
     assert sole["principal_names"] == "Jane Citizen"
     assert sole["po_box"] == "PO Box 123, Parramatta NSW 2124"
-    assert sole["street_address"] == "Level 2, 45 Smith Street, Parramatta NSW 2150"
+    assert sole["office_address"] == "Level 2, 45 Smith Street, Parramatta NSW 2150"
     assert sole["address_postcode_matches_input"] == "Y"
     assert sole["conveyancing"] == "Y" and sole["wills_estates"] == "Y" and sole["criminal"] == "N"
     assert "/contact" in sole["pages_used"] and "/about-us" in sole["pages_used"]
@@ -116,7 +116,10 @@ def test_full_run(sites, tmp_path):
     assert partners["count_basis"] == "team page listing"
     assert set(partners["principal_names"].split("; ")) == {"Robert Example", "Sarah O'Neill"}
     assert "/our-people" in partners["count_source_url"]
-    assert partners["po_box"] == "GPO Box 99, Melbourne VIC 3001"
+    assert partners["po_box"] == partners["postal_address"] == "GPO Box 99, Melbourne VIC 3001"
+    assert partners["office_address"] == "Level 1, 20 Bourke Street, Melbourne VIC 3000"  # structured data
+    assert partners["other_office_addresses"] == "Suite 5, 100 Collins Street, Melbourne VIC 3000"
+    assert partners["address_postcode_matches_input"] == "Y"
     for area in ("family", "commercial", "criminal", "personal_injury"):
         assert partners[area] == "Y"
     assert "brochure" not in partners["pages_used"] and "/news" not in partners["pages_used"]

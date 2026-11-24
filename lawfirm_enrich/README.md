@@ -55,12 +55,35 @@ For each row of `firms.csv`:
      assistants, practice managers and licensed conveyancers are not counted)
    - principal name(s) (Principal, Partner, Director, Founder, …)
    - practice areas: Conveyancing, Wills & Estates, Family, Personal Injury, Commercial, Criminal
-   - postal address / PO Box, and street address
+   - mailing address and office address(es) (see [Addresses](#addresses))
    - published email addresses (see [Email addresses](#email-addresses))
    - the URLs of the pages used
 4. **Classify** as `Sole`, `Small (2-4)`, `Larger`, `Exclude` or `Check manually`.
    `exclude_reason` is one of `barrister`, `in-house`, `government`, `licensed conveyancer` or
    `not a law firm`.
+
+## Addresses
+
+Two addresses are recorded for each firm:
+- **Office address:** the firm's street address. Further offices go in `other_office_addresses`,
+  up to 3.
+- **Mailing address** (`postal_address`), where to send mail: in order of preference, the address
+  labelled "Postal address", a PO Box / GPO Box / Locked Bag (also in `po_box`), or the office
+  address.
+
+They are found in two ways, best first:
+1. **Structured data** that many firm sites embed for Google (schema.org `PostalAddress`, often
+   added by WordPress SEO plugins). It gives exact street, suburb, state and postcode fields.
+2. **Addresses written on the page**: contact page first, then home, about and team pages. Common
+   Australian formats are recognised: "Level 2, 45 Smith Street, Parramatta NSW 2150",
+   "Suite 3/12-14 Main Rd Penrith New South Wales 2750", "PO Box 123, Parramatta NSW 2124",
+   "Locked Bag 5 Sydney NSW 2001", including addresses split over several lines or written in
+   capitals. DX (document exchange) numbers are not addresses and are ignored.
+
+Every address is written the same way, `<line>, <Suburb> <STATE> <postcode>` (for example
+"Level 2, 45 Smith Street, Parramatta NSW 2150"), so mailing lists can split it into separate
+fields. `address_postcode_matches_input` checks the postcode against the ABN register; an `N` is
+worth a look, as the site may belong to a different firm.
 
 ## Email addresses
 
@@ -367,8 +390,10 @@ minutes, depending on how fast the sites respond.
 | `count_basis` | `team page listing`, `about/home page listing`, `stated on site` (e.g. "our team of 12 lawyers"), `principal mentions only`, or `not found` |
 | `principal_names` | `;`-separated |
 | `practice_areas` + 6 Y/N columns | conveyancing, wills_estates, family, personal_injury, commercial, criminal |
-| `postal_address` | PO Box / labelled postal address if found, otherwise the street address |
-| `po_box`, `street_address` | as found |
+| `postal_address` | mailing address: labelled postal address, else PO Box, else office address |
+| `po_box` | PO Box / GPO Box / Locked Bag, if any |
+| `office_address` | the firm's street address |
+| `other_office_addresses` | further offices, one per line (up to 3) |
 | `address_postcode_matches_input` | Y/N: postcode of `postal_address` vs input `postcode` |
 | `email`, `email_type`, `other_emails` | best published address (general addresses first), its type, and up to 4 more |
 | `email_source_url` | the page the address came from |
@@ -448,6 +473,7 @@ lawfirm_enrich/
 │   ├── extract.py              # text, people/roles, practice areas, addresses, exclusion signals
 │   ├── classify.py             # Sole / Small / Larger / Exclude / Check manually
 │   ├── inputs.py               # firms.csv and do_not_contact.csv
+│   ├── addresses.py            # finding mailing and office addresses
 │   ├── emails.py               # which published email addresses are collected
 │   ├── privacy.py              # email scrubbing for every other column
 │   ├── unsubscribe.py          # unsubscribed.csv

@@ -31,7 +31,8 @@ OUTPUT_COLUMNS = [
     "criminal",
     "postal_address",
     "po_box",
-    "street_address",
+    "office_address",
+    "other_office_addresses",
     "address_postcode_matches_input",
     "email",
     "email_type",
@@ -99,9 +100,10 @@ def build_row(
         for area, col in _AREA_COLUMNS.items():
             row[col] = "Y" if area in analysis.practice_areas else "N"
         addr = analysis.address
-        row["postal_address"] = addr.postal
-        row["po_box"] = addr.po_box
-        row["street_address"] = addr.street
+        row["postal_address"] = str(addr.postal or "")
+        row["po_box"] = str(addr.po_box or "")
+        row["office_address"] = str(addr.office or "")
+        row["other_office_addresses"] = "\n".join(str(a) for a in addr.other_offices)
         row["address_source_url"] = addr.source_url
         if analysis.emails:
             row["email"] = analysis.emails[0]
@@ -109,6 +111,7 @@ def build_row(
             row["other_emails"] = "; ".join(analysis.emails[1:5])
             row["email_source_url"] = analysis.email_source_url
         row["no_unsolicited_email_notice"] = analysis.no_unsolicited_notice
-        if addr.postcode and firm.postcode:
-            row["address_postcode_matches_input"] = "Y" if addr.postcode == firm.postcode.strip().zfill(4) else "N"
+        found_postcodes = {a.postcode for a in (addr.postal, addr.office) if a}
+        if found_postcodes and firm.postcode.strip():
+            row["address_postcode_matches_input"] = "Y" if firm.postcode.strip().zfill(4) in found_postcodes else "N"
     return row

@@ -5,7 +5,6 @@ from lawfirm_enrich.extract import (
     analyse,
     classify_role,
     clean_name,
-    extract_address,
     extract_people,
     extract_practice_areas,
     extract_stated_count,
@@ -146,24 +145,6 @@ def test_will_as_a_verb_is_not_wills():
 )
 def test_stated_count(text, count):
     assert extract_stated_count(text) == count
-
-
-def test_address_prefers_contact_page_and_finds_po_box():
-    pages = [
-        page("<p>Visit us at 1 Other Road, Penrith NSW 2750</p>", "home", "https://f.example/"),
-        page(
-            "<address>Level 2, 45 Smith Street<br>Parramatta NSW 2150</address>"
-            "<p>Postal address: PO Box 123, Parramatta NSW 2124</p>",
-            "contact",
-            "https://f.example/contact",
-        ),
-    ]
-    addr = extract_address(pages)
-    assert addr.street == "Level 2, 45 Smith Street, Parramatta NSW 2150"
-    assert addr.po_box == "PO Box 123, Parramatta NSW 2124"
-    assert addr.postal == "PO Box 123, Parramatta NSW 2124"
-    assert addr.postcode == "2124"
-    assert addr.source_url == "https://f.example/contact"
 
 
 def test_analyse_counts_and_principals():

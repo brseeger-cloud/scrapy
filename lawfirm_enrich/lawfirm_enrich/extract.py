@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from parsel import Selector
 
+from .addresses import FirmAddresses, ParsedAddress, choose_addresses
 from .emails import email_type, find_no_unsolicited_notice
 from .privacy import scrub_emails
 
@@ -67,6 +68,7 @@ class Page:
     category: str  # home / about / team / contact
     lines: list[str]  # visible text, with email addresses removed
     emails: list[str] = field(default_factory=list)  # published addresses (see emails.py)
+    structured_addresses: list[ParsedAddress] = field(default_factory=list)  # schema.org data (see addresses.py)
 
     @property
     def text(self) -> str:
@@ -735,85 +737,6 @@ def extract_practice_areas(text: str) -> list[str]:
 
 
 # --------------------------------------------------------------------------
-# Addresses
-# --------------------------------------------------------------------------
-
-_STATES = (
-    r"(?:NSW|VIC|Vic|QLD|Qld|SA|WA|TAS|Tas|NT|ACT|New South Wales|Victoria|Queensland|South Australia|"
-    r"Western Australia|Tasmania|Northern Territory|Australian Capital Territory)"
-)
-_PO_BOX_RE = re.compile(
-    r"\b(?:P\.?\s?O\.?\s?Box|Post Office Box|GPO Box|Locked Bag|Private Bag|PMB)\s*\d+[A-Z]?\b"
-    r"[^\n]{0,60}?\b" + _STATES + r"\.?,?\s*\d{4}\b",
-    re.I,
-)
-_STREET_TYPES = (
-    r"(?:Street|St|Road|Rd|Avenue|Ave|Highway|Hwy|Parade|Pde|Lane|Ln|Drive|Dr|Place|Pl|Terrace|Tce|"
-    r"Boulevard|Blvd|Court|Ct|Crescent|Cres|Way|Circuit|Cct|Close|Cl|Mall|Square|Sq|Esplanade|Esp|"
-    r"Grove|Gr|Row|Walk|Arcade|Plaza|Promenade|Quay|Strand|Circle)"
-)
-_STREET_RE = re.compile(
-    r"(?:(?:Level|Lvl|Suite|Shop|Unit|Office|Ground Floor|Floor)\s*\d*[A-Z]?\s*[,/]?\s*)?"
-    r"\b\d+[A-Z]?(?:\s*[-/]\s*\d+[A-Z]?)?\s+(?:[A-Z][A-Za-z'’\-]+\s+){1,4}"
-    + _STREET_TYPES
-    + r"\b\.?(?:\s*,\s*|\s+)(?:[A-Z][A-Za-z'’\-]+\s*){1,4},?\s*"
-    + _STATES
-    + r"\.?,?\s*\d{4}\b"
-)
-_POSTAL_LABEL_RE = re.compile(
-    r"\b(?:postal address|postal|mailing address|post to|correspondence(?: address)?)\b\s*[:\-]?", re.I
-)
-_POSTCODE_RE = re.compile(r"(\d{4})\b(?!.*\d{4}\b)")
-
-
-@dataclass
-class Address:
-    po_box: str = ""
-    street: str = ""
-    postal: str = ""
-    source_url: str = ""
-    postcode: str = ""
-
-
-def _tidy(addr: str) -> str:
-    addr = re.sub(r"\s*,\s*(?:,\s*)+", ", ", addr)
-    addr = re.sub(r"\s+", " ", addr)
-    return addr.strip(" ,")
-
-
-def extract_address(pages: list[Page]) -> Address:
-    """Find a PO Box / postal address and a street address, preferring the contact page."""
-    order = {"contact": 0, "home": 1, "about": 2, "team": 3}
-    result = Address()
-    for page in sorted(pages, key=lambda p: order.get(p.category, 9)):
-        joined = ", ".join(page.lines)
-        if not result.po_box:
-            m = _PO_BOX_RE.search(joined)
-            if m:
-                result.po_box = _tidy(m.group(0))
-                result.source_url = result.source_url or page.url
-        if not result.postal:
-            for lm in _POSTAL_LABEL_RE.finditer(joined):
-                window = joined[lm.end() : lm.end() + 160]
-                m = _PO_BOX_RE.search(window) or _STREET_RE.search(window)
-                if m and m.start() < 20:
-                    result.postal = _tidy(m.group(0))
-                    result.source_url = result.source_url or page.url
-                    break
-        if not result.street:
-            m = _STREET_RE.search(joined)
-            if m:
-                result.street = _tidy(m.group(0))
-                result.source_url = result.source_url or page.url
-        if result.street and (result.po_box or result.postal):
-            break
-    result.postal = result.postal or result.po_box or result.street
-    pm = _POSTCODE_RE.search(result.postal)
-    result.postcode = pm.group(1) if pm else ""
-    return result
-
-
-# --------------------------------------------------------------------------
 # Signals used by the classifier
 # --------------------------------------------------------------------------
 
@@ -965,7 +888,7 @@ class Analysis:
     principals: list[str] = field(default_factory=list)
     people: list[Person] = field(default_factory=list)
     practice_areas: list[str] = field(default_factory=list)
-    address: Address = field(default_factory=Address)
+    address: FirmAddresses = field(default_factory=FirmAddresses)
     sole_phrase: bool = False
     signals: list[Signal] = field(default_factory=list)
     emails: list[str] = field(default_factory=list)  # best first: general addresses, then personal
@@ -1019,7 +942,7 @@ def analyse(firm_name: str, entity_type: str, host: str, pages: list[Page]) -> A
         a.count_source_url = pages[0].url if pages else ""
 
     a.practice_areas = extract_practice_areas(all_text)
-    a.address = extract_address(pages)
+    a.address = choose_addresses(pages)
     a.signals = detect_signals(firm_name, entity_type, host, pages, len(lawyers))
 
     order = {"contact": 0, "home": 1, "about": 2, "team": 3}
