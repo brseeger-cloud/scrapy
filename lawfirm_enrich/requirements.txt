@@ -1,0 +1,5 @@
+# Scrapy is installed from the brseeger-cloud/scrapy repository this project lives in
+# (pip install -e ..). If you run the project elsewhere, `scrapy>=2.13` from PyPI also works.
+openpyxl>=3.1
+tzdata>=2024.1   # time-zone data for date_collected (needed on Windows)
+pytest>=8        # tests only

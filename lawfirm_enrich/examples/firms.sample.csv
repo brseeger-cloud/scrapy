@@ -1,0 +1,5 @@
+firm_name,abn,entity_type,state,postcode,website
+Example Sole Lawyers,11 111 111 111,Individual/Sole Trader,NSW,2150,www.sole-lawyers.example
+Example Partners Pty Ltd,22 222 222 222,Australian Private Company,VIC,3000,https://partners.example
+Example Barrister Chambers,33 333 333 333,Individual/Sole Trader,QLD,4000,barrister.example
+Example No Website Legal,44 444 444 444,Family Partnership,SA,5000,
