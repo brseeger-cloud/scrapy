@@ -50,7 +50,8 @@ OUTPUT_COLUMNS = [
 ]
 
 # The only columns allowed to hold email addresses; everything else is scrubbed.
-EMAIL_COLUMNS = frozenset({"email", "other_emails"})
+# (sent_to is in the master list's Campaigns sheet: the address an email went to.)
+EMAIL_COLUMNS = frozenset({"email", "other_emails", "sent_to"})
 
 # Column order of the failed-sites log (sheet + failed_sites.csv)
 FAILED_COLUMNS = ["input_row", "firm_name", "abn", "website", "failed_url", "error", "date_collected"]

@@ -1,3 +1,4 @@
+import csv
 from datetime import date
 
 import pytest
@@ -5,7 +6,7 @@ from openpyxl import load_workbook
 
 from lawfirm_enrich.inputs import DoNotContactList
 from lawfirm_enrich.items import OUTPUT_COLUMNS
-from lawfirm_enrich.lists import Criteria, make_list, select
+from lawfirm_enrich.lists import EMAIL_LIST_COLUMNS, POSTAL_LIST_COLUMNS, Criteria, addressee, make_list, select
 from lawfirm_enrich.master import MasterList, firm_key, sync_opt_outs
 
 DNC_HEADER = "firm_name,abn,website,reason,date_added\n"
@@ -23,6 +24,7 @@ def crawl_row(**overrides):
         solicitor_count=3,
         principal_names="Jane Smith; Bob Jones",
         postal_address="PO Box 1, Sydney NSW 2001",
+        office_address="Level 2, 45 Smith Street, Sydney NSW 2000",
         conveyancing="Y",
         family="N",
         crawl_status="ok",
@@ -171,25 +173,92 @@ def test_select(master_with_firms, criteria, expected):
     assert sorted(r["firm_name"] for r in select(m, DoNotContactList.load(dnc), criteria)) == expected
 
 
-def test_make_list_excludes_dnc_and_marks_contacted(master_with_firms, tmp_path):
+def read_csv(path):
+    with open(path, newline="", encoding="utf-8-sig") as fh:
+        return list(csv.DictReader(fh))
+
+
+def test_postal_list_is_mail_merge_ready(master_with_firms, tmp_path):
     m, dnc = master_with_firms
     dnc.write_text(DNC_HEADER + "Solo Law,,,,\n")
     out = tmp_path / "list.csv"
-    n = make_list(m.path, dnc, out, Criteria(), mark_contacted=True, today=date(2026, 12, 1))
-    assert n == 1
-    text = out.read_text(encoding="utf-8-sig")
-    assert text.splitlines()[0].startswith("firm_name,addressee,postal_address")
-    assert 'Smith Lawyers,Jane Smith,"PO Box 1, Sydney NSW 2001"' in text
-    assert "Solo Law" not in text
-    assert "info@smith.example,general" in text  # email columns are not scrubbed
+    assert make_list(m.path, dnc, out, Criteria()) == 1  # Solo Law is on the do-not-contact list
+    (row,) = read_csv(out)
+    assert list(row) == POSTAL_LIST_COLUMNS
+    assert row["addressee"] == "Jane Smith" and (row["first_name"], row["last_name"]) == ("Jane", "Smith")
+    assert (row["address_line_1"], row["suburb"], row["state"], row["postcode"]) == (
+        "PO Box 1",
+        "Sydney",
+        "NSW",
+        "2001",
+    )
+    assert row["address_type"] == "PO Box"
 
-    # contacted today, so a "not contacted in 90 days" list leaves it out
-    assert make_list(m.path, dnc, out, Criteria(not_contacted_days=90), today=date(2026, 12, 15)) == 0
-    assert make_list(m.path, dnc, out, Criteria(not_contacted_days=10), today=date(2026, 12, 15)) == 1
+    # the office address: a firm with no mailing address but an office address is now included
+    assert make_list(m.path, dnc, out, Criteria(address="office")) == 2
+    row = next(r for r in read_csv(out) if r["firm_name"] == "Smith Lawyers")
+    assert (row["address_line_1"], row["postcode"], row["address_type"]) == (
+        "Level 2, 45 Smith Street",
+        "2000",
+        "office",
+    )
 
 
-def test_addressee_falls_back(master_with_firms, tmp_path):
+def test_email_list_is_email_service_ready(master_with_firms, tmp_path):
     m, dnc = master_with_firms
     out = tmp_path / "list.csv"
-    make_list(m.path, dnc, out, Criteria(sizes=["Sole"]))
-    assert "Solo Law,The Principal," in out.read_text(encoding="utf-8-sig")
+    make_list(m.path, dnc, out, Criteria(channel="email"))
+    rows = {r["firm_name"]: r for r in read_csv(out)}
+    assert list(rows["Smith Lawyers"]) == EMAIL_LIST_COLUMNS
+    assert rows["Smith Lawyers"]["email"] == "info@smith.example"  # not scrubbed
+    assert (rows["Smith Lawyers"]["first_name"], rows["Smith Lawyers"]["addressee"]) == ("Jane", "Jane Smith")
+    assert (rows["Solo Law"]["first_name"], rows["Solo Law"]["addressee"]) == ("", "The Principal")
+
+
+@pytest.mark.parametrize(
+    "email,email_type,expected",
+    [
+        ("bob.jones@smith.example", "personal", "Bob Jones"),  # the person whose address it is
+        ("bjones@smith.example", "personal", "Bob Jones"),
+        ("info@smith.example", "general", "Jane Smith"),  # first principal
+        ("kim.lee@smith.example", "personal", "Jane Smith"),  # not a principal
+    ],
+)
+def test_addressee(email, email_type, expected):
+    row = {"principal_names": "Jane Smith; Bob Jones", "email_type": email_type}
+    assert addressee(row, email) == expected
+
+
+def test_campaigns_tracked_per_channel(master_with_firms, tmp_path):
+    m, dnc = master_with_firms
+    out = tmp_path / "list.csv"
+    sent = make_list(m.path, dnc, out, Criteria(), mark_contacted=True, campaign="Dec letter", today=date(2026, 12, 1))
+    assert sent == 2
+    later = date(2026, 12, 15)
+    # posted recently, so the next postal list leaves them out ...
+    assert make_list(m.path, dnc, out, Criteria(not_contacted_days=90), today=later) == 0
+    assert make_list(m.path, dnc, out, Criteria(not_contacted_days=10), today=later) == 2
+    # ... but the email campaign still goes to them
+    email = Criteria(channel="email", not_contacted_days=90)
+    assert make_list(m.path, dnc, out, email, mark_contacted=True, campaign="Dec email", today=later) == 2
+
+    master = MasterList.load(m.path)
+    smith = master.rows["abn:11111111111"]
+    assert (smith["last_mailed"], smith["last_emailed"], smith["last_campaign"]) == (
+        "2026-12-01",
+        "2026-12-15",
+        "Dec email",
+    )
+    log = [(c["campaign"], c["channel"], c["sent_to"]) for c in master.campaigns if c["firm_name"] == "Smith Lawyers"]
+    assert log == [("Dec letter", "post", "PO Box 1, Sydney NSW 2001"), ("Dec email", "email", "info@smith.example")]
+
+
+def test_manual_last_contacted_blocks_every_channel(master_with_firms, tmp_path):
+    m, dnc = master_with_firms
+    master = MasterList.load(m.path)
+    for row in master.rows.values():
+        row["last_contacted"] = "2026-11-30"
+    master.save()
+    for channel in ("post", "email"):
+        criteria = Criteria(channel=channel, not_contacted_days=30)
+        assert make_list(m.path, dnc, tmp_path / "l.csv", criteria, today=date(2026, 12, 1)) == 0

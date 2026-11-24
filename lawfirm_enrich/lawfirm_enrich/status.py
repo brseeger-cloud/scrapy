@@ -75,20 +75,25 @@ def status_report(
         emails = Counter(_norm(r.get("email_type")) for r in rows if _norm(r.get("email")))
         refuse = sum(1 for r in rows if _norm(r.get("no_unsolicited_email_notice")))
         postal = sum(1 for r in rows if _norm(r.get("postal_address")))
+        po_box = sum(1 for r in rows if _norm(r.get("po_box")))
+        office = sum(1 for r in rows if _norm(r.get("office_address")))
         crawled = [d for d in (_as_date(r.get("last_crawled")) for r in rows) if d]
         due = sum(1 for d in crawled if d < today - timedelta(days=REFRESH_DAYS))
-        contacted = sum(
-            1 for r in rows if (d := _as_date(r.get("last_contacted"))) and d >= today - timedelta(days=REFRESH_DAYS)
-        )
+        recent = today - timedelta(days=REFRESH_DAYS)
+        mailed = sum(1 for r in rows if (d := _as_date(r.get("last_mailed"))) and d >= recent)
+        emailed = sum(1 for r in rows if (d := _as_date(r.get("last_emailed"))) and d >= recent)
+        campaigns = list(dict.fromkeys((c.get("campaign"), c.get("channel")) for c in master.campaigns))
         lines += [
             f"Master list ({master_path}): {len(rows):,} firms",
             f"  {sizes}",
-            f"  with a postal address: {postal:,}",
+            f"  with a mailing address: {postal:,} (of which PO Box {po_box:,}); with an office address: {office:,}",
             f"  with an email address: {sum(emails.values()):,} (general {emails['general']:,}, "
             f"personal {emails['personal']:,}); site refuses unsolicited email: {refuse:,}",
             f"  last crawled: {min(crawled).isoformat() if crawled else '-'} to "
             f"{max(crawled).isoformat() if crawled else '-'}; due for a refresh (over {REFRESH_DAYS} days): {due:,}",
-            f"  contacted in the last {REFRESH_DAYS} days: {contacted:,}",
+            f"  mailed in the last {REFRESH_DAYS} days: {mailed:,}; emailed: {emailed:,}",
+            f"  campaigns recorded: {len(campaigns):,}"
+            + (f" (latest: {campaigns[-1][0]}, {campaigns[-1][1]})" if campaigns else ""),
         ]
 
     dnc_count = len(DoNotContactList.load(dnc_path)) if Path(dnc_path).exists() else 0

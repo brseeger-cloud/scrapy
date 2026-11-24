@@ -27,7 +27,8 @@ the Scrapy in this repository). It runs on your own computer.
    .venv/bin/python lawaudit.py build-list ~/Downloads/public_split_1_10.zip ~/Downloads/public_split_11_20.zip
    .venv/bin/python lawaudit.py find-websites --limit 50
    .venv/bin/python lawaudit.py crawl
-   .venv/bin/python lawaudit.py make-list --channel email --out output/email_list.csv
+   .venv/bin/python lawaudit.py make-list --mark-contacted --campaign "Feb letter"   # mail campaign
+   .venv/bin/python lawaudit.py make-list --channel email --mark-contacted --campaign "Feb email"
    .venv/bin/python lawaudit.py unsubscribe ~/Downloads/unsubscribes.csv
    ```
 
@@ -288,7 +289,7 @@ where it stopped. The master list is saved every 1,000 firms. Use a larger numbe
 firms that are due, for example `--skip-crawled-within 90` once a month re-crawls firms last
 crawled more than 90 days ago, plus any new firms in `firms.csv`.
 
-## Master list and mailing lists
+## Master list
 
 `data/master.xlsx` is the long-term record: one row per firm, keyed by ABN (or the website domain,
 or the name, when there is no ABN). Each run adds new firms and updates existing ones.
@@ -299,10 +300,14 @@ or the name, when there is no ABN). Each run adds new firms and updates existing
 - The orange columns are yours and are never overwritten:
   - `my_status`: set it to **Opted out** (or **Do not contact**) and, on the next run or list
     export, the firm is added to `do_not_contact.csv` and removed from the master list.
-  - `last_contacted`: a date. `make_list.py --mark-contacted` fills it in for you.
+  - `last_contacted`: a date you contacted the firm yourself, e.g. a phone call. It keeps the firm
+    off *every* list made with `--not-contacted-days`.
   - `my_notes`: anything you like.
 
   Columns you add yourself are kept too.
+- `last_mailed`, `last_emailed` and `last_campaign` are filled in by `make-list --mark-contacted`.
+  Each channel has its own date, so a mail-out doesn't stop the same firm getting the email
+  campaign.
 - `first_seen`, `last_crawled`, `last_successful_crawl` and `last_changed` record when each firm
   was found, crawled and last changed.
 
@@ -310,31 +315,68 @@ or the name, when there is no ABN). Each run adds new firms and updates existing
 address, practice areas or crawl status, with the date. Use it to spot firms that grew, moved or
 closed.
 
-**Making a mailing list**
+**Campaigns sheet:** one row per firm per campaign sent with `--mark-contacted`: date, campaign
+name, channel, and the address or email it went to. It's your record of who was sent what, which
+is also useful evidence if a recipient ever queries a message.
+
+## Running campaigns
+
+`lawaudit.py make-list` (or `make_list.py`) exports the firms for one campaign as a CSV that
+opens in Excel.
+
+**Mail campaign:**
 
 ```bash
-python make_list.py --size Sole "Small (2-4)" --state NSW VIC --area conveyancing wills_estates --not-contacted-days 180 --out output/mailing_list.csv --mark-contacted
+python lawaudit.py make-list --size Sole "Small (2-4)" --state NSW VIC --not-contacted-days 180 --mark-contacted --campaign "Feb 2027 audit letter"
 ```
+
+writes `output/mailing_list.csv` with:
+- `firm_name`
+- `addressee`, `first_name`, `last_name`: the first principal, or "The Principal"
+- `address_line_1`, `suburb`, `state`, `postcode`
+- `full_address`
+- `address_type`: `PO Box`, `postal` or `office`
+
+Use it for Word mail merge, or give it to a mail house; they can sort and barcode it for Australia
+Post's bulk mail discounts. It goes to each firm's mailing address (its PO Box if it has one). Add
+`--address office` to send to the office instead.
+
+**Email campaign:**
+
+```bash
+python lawaudit.py make-list --channel email --not-contacted-days 90 --mark-contacted --campaign "Feb 2027 audit email"
+```
+
+writes `output/email_list.csv` with:
+- `email`
+- `first_name`, `last_name`, `addressee`: the principal whose name is in a personal address, else
+  the first principal
+- `firm_name`, `email_type` and firm details
+
+Import it into your email service (Mailchimp, Campaign Monitor, …) and use its merge fields and
+unsubscribe link. Add `--general-email-only` to send only to addresses like info@. Firms whose
+site refuses unsolicited email are always left out.
 
 | Option | Meaning |
 |---|---|
+| `--channel post\|email` | `post` (default) or `email` |
 | `--size` | classifications to include: `Sole`, `Small (2-4)`, `Larger`, `Check manually` (default: the first three) |
 | `--state` | states to include (default: all) |
 | `--area` | firms doing at least one of these: `conveyancing`, `wills_estates`, `family`, `personal_injury`, `commercial`, `criminal` (default: any) |
-| `--not-contacted-days N` | leave out firms contacted in the last N days |
-| `--channel post\|email` | `post` (default): firms with a postal address. `email`: firms with a published email address and no refusal notice |
-| `--general-email-only` | email channel: only general addresses such as info@, not individuals' |
-| `--include-no-address` | post channel: include firms with no postal address found (left out by default) |
-| `--mark-contacted` | set `last_contacted` to today for every firm exported |
+| `--not-contacted-days N` | leave out firms sent this channel in the last N days, or that you marked `last_contacted` |
+| `--address postal\|office` | post: send to the mailing address (default) or the office address |
+| `--general-email-only` | email: only general addresses such as info@ |
+| `--include-no-address` | post: include firms with no address found (left out by default) |
+| `--mark-contacted` | record the send: sets `last_mailed` / `last_emailed` and logs each firm in the Campaigns sheet |
+| `--campaign NAME` | the campaign name recorded with `--mark-contacted` |
+| `--out FILE` | where to write (default `output/mailing_list.csv` or `output/email_list.csv`) |
 
-The CSV has `firm_name`, `addressee` (the first principal, or "The Principal"), `postal_address`,
-`email`, `email_type`, `state`, `postcode`, `classification`, `solicitor_count`, `practice_areas`, `website` and
-`firm_key`. It opens directly in Excel and works with Word mail merge. Firms classified `Exclude`
-and firms on `do_not_contact.csv` are never exported, whatever the options. For an email list:
+**Never exported, whatever the options:**
+- firms classified `Exclude`
+- firms on `do_not_contact.csv`
+- unsubscribed addresses
 
-```bash
-python make_list.py --channel email --general-email-only --not-contacted-days 90 --out output/email_list.csv --mark-contacted
-```
+**Only use `--mark-contacted` for the export you actually send.** For a trial run, leave it off.
 
 ### Unsubscribes
 
@@ -359,7 +401,8 @@ public repository, like the other files with real data.
 1. `lawaudit.py build-list`, then `find-websites`, then `crawl`. About 17,000 firms take a few
    hours for websites and roughly 3–6 hours to crawl, so run them overnight.
 2. Review the `Check manually` rows, and websites marked "location unconfirmed", in the master list.
-3. `lawaudit.py make-list … --mark-contacted` for each campaign.
+3. `lawaudit.py make-list … --mark-contacted --campaign NAME` for each mail or email campaign
+   (see [Running campaigns](#running-campaigns)).
 4. Process unsubscribes at least weekly (`lawaudit.py unsubscribe …`), and mark firms that ask
    not to be contacted at all as "Opted out" in `my_status`.
 5. Monthly or quarterly: `lawaudit.py crawl --skip-crawled-within 90` to refresh, and
@@ -394,7 +437,7 @@ minutes, depending on how fast the sites respond.
 | `po_box` | PO Box / GPO Box / Locked Bag, if any |
 | `office_address` | the firm's street address |
 | `other_office_addresses` | further offices, one per line (up to 3) |
-| `address_postcode_matches_input` | Y/N: postcode of `postal_address` vs input `postcode` |
+| `address_postcode_matches_input` | Y/N: postcode of the mailing or office address vs the input `postcode` |
 | `email`, `email_type`, `other_emails` | best published address (general addresses first), its type, and up to 4 more |
 | `email_source_url` | the page the address came from |
 | `no_unsolicited_email_notice` | the site's statement refusing unsolicited email, if any |

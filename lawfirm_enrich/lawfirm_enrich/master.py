@@ -34,10 +34,21 @@ from .items import OUTPUT_COLUMNS
 logger = logging.getLogger(__name__)
 
 USER_COLUMNS = ["my_status", "last_contacted", "my_notes"]
+# Filled in by make_list --mark-contacted; one date per channel so a mail-out
+# does not stop the same firm getting the email campaign.
+CAMPAIGN_COLUMNS = ["last_mailed", "last_emailed", "last_campaign"]
 TRACKING_COLUMNS = ["first_seen", "last_crawled", "last_successful_crawl", "last_changed"]
 CRAWL_COLUMNS = [c for c in OUTPUT_COLUMNS if c != "input_row"]
-MASTER_COLUMNS = ["firm_key", *CRAWL_COLUMNS[:9], *USER_COLUMNS, *CRAWL_COLUMNS[9:], *TRACKING_COLUMNS]
+MASTER_COLUMNS = [
+    "firm_key",
+    *CRAWL_COLUMNS[:9],
+    *USER_COLUMNS,
+    *CAMPAIGN_COLUMNS,
+    *CRAWL_COLUMNS[9:],
+    *TRACKING_COLUMNS,
+]
 CHANGE_COLUMNS = ["date", "firm_key", "firm_name", "field", "old_value", "new_value"]
+CAMPAIGN_LOG_COLUMNS = ["date", "campaign", "channel", "firm_key", "firm_name", "sent_to"]
 
 # Changes to these columns are recorded in the Changes sheet
 TRACKED_COLUMNS = [
@@ -102,6 +113,7 @@ class MasterList:
     columns: list[str] = field(default_factory=lambda: list(MASTER_COLUMNS))
     rows: dict[str, dict] = field(default_factory=dict)
     changes: list[dict] = field(default_factory=list)
+    campaigns: list[dict] = field(default_factory=list)  # one row per firm per campaign sent
 
     # ---------------------------------------------------------------- load/save
 
@@ -122,11 +134,12 @@ class MasterList:
                 key = _norm(row.get("firm_key"))
                 if key:
                     master.rows[key] = row
-        if "Changes" in wb.sheetnames:
-            ws = wb["Changes"]
-            header = [_norm(c.value) for c in ws[1]]
-            for values in ws.iter_rows(min_row=2, values_only=True):
-                master.changes.append(dict(zip(header, values, strict=False)))
+        for sheet, target in (("Changes", master.changes), ("Campaigns", master.campaigns)):
+            if sheet in wb.sheetnames:
+                ws = wb[sheet]
+                header = [_norm(c.value) for c in ws[1]]
+                for values in ws.iter_rows(min_row=2, values_only=True):
+                    target.append(dict(zip(header, values, strict=False)))
         return master
 
     def save(self) -> Path:
@@ -139,6 +152,7 @@ class MasterList:
             sorted(self.rows.values(), key=lambda r: (_norm(r.get("firm_name")).lower(), r["firm_key"])),
         )
         _write(wb.create_sheet("Changes"), CHANGE_COLUMNS, self.changes)
+        _write(wb.create_sheet("Campaigns"), CAMPAIGN_LOG_COLUMNS, self.campaigns)
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(f".{self.path.stem}.tmp{self.path.suffix}")

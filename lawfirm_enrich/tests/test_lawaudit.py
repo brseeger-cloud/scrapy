@@ -49,6 +49,8 @@ def test_status_report(workspace):
     assert "Sole 1 | Larger 1" in report
     assert "with an email address: 2 (general 1, personal 1); site refuses unsolicited email: 1" in report
     assert "due for a refresh (over 90 days): 1" in report
+    assert "with a mailing address: 2 (of which PO Box 0); with an office address: 0" in report
+    assert "campaigns recorded: 0" in report
     assert "Next step: refresh older firms" in report
 
 
@@ -86,3 +88,18 @@ def test_cli_unsubscribe(workspace):
     result = lawaudit("unsubscribe", "amy@jones.example", "--whole-firm", cwd=workspace)
     assert "Firms put on do-not-contact:    Jones Law" in result.stdout
     assert lawaudit("unsubscribe", "no addresses here", cwd=workspace).returncode == 1
+
+
+def test_cli_campaigns(workspace):
+    result = lawaudit("make-list", "--mark-contacted", "--campaign", "Mail Dec", cwd=workspace)
+    assert result.returncode == 0, result.stderr
+    assert "Wrote 2 firms to output/mailing_list.csv" in result.stdout
+    header = (workspace / "output" / "mailing_list.csv").read_text(encoding="utf-8-sig").splitlines()[0]
+    assert header.startswith("firm_name,addressee,first_name,last_name,address_line_1,suburb,state,postcode")
+
+    # Jones's site refuses unsolicited email, so only Smith gets the email campaign
+    result = lawaudit("make-list", "--channel", "email", "--not-contacted-days", "30", "--mark-contacted",
+                      "--campaign", "Email Dec", cwd=workspace)  # fmt: skip
+    assert "Wrote 1 firms to output/email_list.csv" in result.stdout
+    assert "info@smith.example" in (workspace / "output" / "email_list.csv").read_text(encoding="utf-8-sig")
+    assert "campaigns recorded: 2 (latest: Email Dec, email)" in lawaudit("status", cwd=workspace).stdout
