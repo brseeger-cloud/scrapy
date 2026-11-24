@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+output/
+logs/
+# your master list and outputs hold principals' names (personal information): never commit them
+data/
+
+# backups made by find_websites.py
+firms.backup-*.csv
+
+# real data: unsubscribed addresses
+unsubscribed.csv
+# your data files: never in the download, so unzipping an update can't overwrite them
+firms.csv
+do_not_contact.csv

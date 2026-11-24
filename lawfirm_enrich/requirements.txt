@@ -1,0 +1,5 @@
+scrapy>=2.15     # tested with 2.15–2.20; 2.14 and older do not work
+openpyxl>=3.1
+tzdata>=2024.1   # time-zone data for date_collected (needed on Windows)
+pytest>=8        # tests only
+ruff==0.17.4     # linting only
