@@ -12,3 +12,6 @@ firms.backup-*.csv
 
 # real data: unsubscribed addresses
 unsubscribed.csv
+# your data files: never in the download, so unzipping an update can't overwrite them
+firms.csv
+do_not_contact.csv

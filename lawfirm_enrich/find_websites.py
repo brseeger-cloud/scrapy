@@ -33,6 +33,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    sys.path.insert(0, str(HERE))
+    from lawfirm_enrich.inputs import ensure_default_dnc
+
+    ensure_default_dnc(args.dnc)
     for label, path in (("input", args.input), ("do-not-contact", args.dnc)):
         if not Path(path).exists():
             print(f"error: {label} file not found: {path}", file=sys.stderr)

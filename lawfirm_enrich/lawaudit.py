@@ -35,6 +35,7 @@ def _status(argv: list[str]) -> int:
 
 
 def _unsubscribe(argv: list[str]) -> int:
+    from lawfirm_enrich.inputs import ensure_default_dnc
     from lawfirm_enrich.master import check_writable
     from lawfirm_enrich.unsubscribe import process_unsubscribes
 
@@ -58,6 +59,7 @@ def _unsubscribe(argv: list[str]) -> int:
     except PermissionError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    ensure_default_dnc(args.dnc)
     if not Path(args.dnc).exists():
         print(f"error: do-not-contact file not found: {args.dnc}", file=sys.stderr)
         return 2

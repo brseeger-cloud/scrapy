@@ -226,7 +226,7 @@ Example Sole Lawyers,11 111 111 111,Individual/Sole Trader,NSW,2150,www.sole-law
 connection or TLS error, the crawler tries plain HTTP once. Rows with no website still appear in the
 output (`crawl_status = no website`).
 
-**`do_not_contact.csv`**: always applied. A firm is excluded if **any** of these match:
+**`do_not_contact.csv`**: always applied. It's created empty the first time you run a step. A firm is excluded if **any** of these match:
 
 ```csv
 firm_name,abn,website,reason,date_added
@@ -506,8 +506,8 @@ lawfirm_enrich/
 ├── build_firm_list.py          # build firms.csv from the ABN Bulk Extract
 ├── find_websites.py            # fill in firms' websites
 ├── scrapy.cfg
-├── firms.csv                   # your input (header only in the repo)
-├── do_not_contact.csv          # always applied (header only in the repo)
+├── firms.csv                   # your firm list (made by build-list; not in the download)
+├── do_not_contact.csv          # always applied (created empty on first use; not in the download)
 ├── examples/                   # sample input files
 ├── lawfirm_enrich/
 │   ├── settings.py             # crawl settings

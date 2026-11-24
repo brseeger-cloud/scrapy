@@ -20,6 +20,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+from lawfirm_enrich.inputs import ensure_default_dnc  # noqa: E402
 from lawfirm_enrich.lists import AREAS, SIZES, Criteria, make_list  # noqa: E402
 from lawfirm_enrich.master import check_writable  # noqa: E402
 
@@ -86,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--campaign", default="", help="campaign name to record with --mark-contacted")
     args = parser.parse_args(argv)
 
+    ensure_default_dnc(args.dnc)
     for label, path in (("master list", args.master), ("do-not-contact", args.dnc)):
         if not Path(path).exists():
             print(f"error: {label} file not found: {path}", file=sys.stderr)

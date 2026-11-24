@@ -103,3 +103,12 @@ def test_cli_campaigns(workspace):
     assert "Wrote 1 firms to output/email_list.csv" in result.stdout
     assert "info@smith.example" in (workspace / "output" / "email_list.csv").read_text(encoding="utf-8-sig")
     assert "campaigns recorded: 2 (latest: Email Dec, email)" in lawaudit("status", cwd=workspace).stdout
+
+
+def test_default_dnc_file_created_but_typed_path_required(tmp_path):
+    (tmp_path / "firms.csv").write_text(FIRMS_HEADER)
+    result = lawaudit("unsubscribe", "a@b.example", cwd=tmp_path)
+    assert result.returncode == 0 and "Created an empty do_not_contact.csv" in result.stdout
+    assert (tmp_path / "do_not_contact.csv").read_text().startswith("firm_name,abn,website")
+    result = lawaudit("unsubscribe", "a@b.example", "--dnc", "typo.csv", cwd=tmp_path)
+    assert result.returncode == 2 and not (tmp_path / "typo.csv").exists()

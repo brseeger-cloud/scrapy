@@ -171,3 +171,17 @@ class DoNotContactList:
 
     def matches_firm(self, firm: Firm, *extra_urls: str) -> bool:
         return self.matches(firm_name=firm.firm_name, abn=firm.abn, urls=(firm.website, firm.url, *extra_urls))
+
+
+DEFAULT_DNC = "do_not_contact.csv"
+
+
+def ensure_default_dnc(path: str) -> None:
+    """Create an empty do_not_contact.csv the first time, if the default file is used.
+
+    Only the default file is created: a path you typed yourself must exist, so a
+    typo can never silently stand in for your real list.
+    """
+    if path == DEFAULT_DNC and not Path(path).exists():
+        Path(path).write_text(",".join(DNC_COLUMNS) + "\n", encoding="utf-8")
+        print(f"Created an empty {path} (firms you must never contact go in here).")

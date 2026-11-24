@@ -24,6 +24,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from lawfirm_enrich.abr import build_firm_list  # noqa: E402
+from lawfirm_enrich.inputs import ensure_default_dnc  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    ensure_default_dnc(args.dnc)
     missing = [s for s in [*args.sources, args.dnc] if not Path(s).exists()]
     if missing:
         print(f"error: not found: {', '.join(missing)}", file=sys.stderr)
