@@ -89,6 +89,43 @@ pip install -e ..                  # Scrapy from this repository
 pip install -r requirements.txt
 ```
 
+## Building the firm list
+
+`firms.csv` can be built from the **ABN Bulk Extract**, the public Australian Business Register.
+It's free on data.gov.au (search "ABN Bulk Extract") under a CC BY licence.
+
+1. Download both zip files, `public_split_1_10.zip` and `public_split_11_20.zip` (about 1 GB each).
+   There is no need to unzip them.
+2. Run:
+
+   ```bash
+   python build_firm_list.py ~/Downloads/public_split_1_10.zip ~/Downloads/public_split_11_20.zip
+   ```
+
+   This takes about 10–15 minutes.
+
+**What it adds:** every *active* ABN whose legal, trading or business name contains "Lawyers",
+"Legal", "Solicitors", "Law", "Attorneys", "Notary" or "Barristers & Solicitors".
+
+**What it leaves out:**
+- super funds, government bodies and deceased estates
+- false matches such as "in-law", "Law Society", "Legal Aid", "paralegal"
+- firms on `do_not_contact.csv`
+- "… Conveyancing" businesses, which are mostly licensed conveyancers. Add `--include-conveyancers`
+  to keep them.
+
+**How rows are filled in:**
+- `firm_name` is the business name the public sees.
+- Entities of the same practice (company, service trust, partnership) are merged into one row. The
+  GST-registered ABN is used, and the others go in `other_abns`.
+- Extra columns are added: `legal_name`, `other_names`, `other_abns`, `gst_registered` and
+  `source`. The crawler ignores them.
+- Re-running it later adds only new firms. Existing rows, and websites you filled in, are kept.
+
+**Limits:** the register has no industry codes, websites or street addresses. A firm that trades
+only under a person's own name (e.g. "Jane Citizen") cannot be recognised as a law firm and is
+missed. Street addresses come later, from the firm's website.
+
 ## Input files
 
 **`firms.csv`** (UTF-8; a header row is required, column order does not matter):
@@ -215,7 +252,8 @@ python make_list.py --channel email --general-email-only --not-contacted-days 90
 
 ### Recommended cycle
 
-1. Put your firm list in `firms.csv` and run `python run.py`. About 17,000 firms take roughly 3–6
+1. Build `firms.csv` (see [Building the firm list](#building-the-firm-list)), then run
+   `python run.py`. About 17,000 firms take roughly 3–6
    hours, so run it overnight.
 2. Review the `Check manually` rows in the master list.
 3. Run `make_list.py` for each campaign, with `--mark-contacted`.
@@ -313,6 +351,7 @@ Lint with `ruff check . && ruff format --check .` (rules in `ruff.toml`).
 lawfirm_enrich/
 ├── run.py                      # crawl and update the master list
 ├── make_list.py                # export a mailing list from the master list
+├── build_firm_list.py          # build firms.csv from the ABN Bulk Extract
 ├── scrapy.cfg
 ├── firms.csv                   # your input (header only in the repo)
 ├── do_not_contact.csv          # always applied (header only in the repo)
@@ -328,6 +367,7 @@ lawfirm_enrich/
 │   ├── pipelines.py            # do-not-contact → email scrub → master list → Excel export
 │   ├── master.py               # the master list (data/master.xlsx)
 │   ├── lists.py                # selecting firms for a mailing list
+│   ├── abr.py                  # reading the ABN Bulk Extract
 │   ├── items.py                # output columns
 │   └── export.py               # xlsx / csv writing
 └── tests/
