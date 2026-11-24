@@ -5,8 +5,8 @@ pages on each firm's website, and writes an enriched spreadsheet: how many solic
 principal(s), practice areas, postal address / PO Box, which pages were used, and a size/exclusion
 classification.
 
-It runs on the Scrapy in this repository (`brseeger-cloud/scrapy`). It also works with Scrapy 2.13 or
-later from PyPI.
+It needs Python 3.11 or later and Scrapy 2.15 or later (tested with 2.15–2.20 from PyPI, and with
+the Scrapy in this repository).
 
 ## What it does
 
@@ -85,8 +85,7 @@ time, at least 2 seconds apart.
 cd lawfirm_enrich
 python3.11 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -e ..                  # Scrapy from this repository
-pip install -r requirements.txt
+pip install -r requirements.txt   # installs Scrapy from PyPI
 ```
 
 ## Building the firm list
