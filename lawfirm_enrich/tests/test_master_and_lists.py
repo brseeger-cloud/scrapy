@@ -262,3 +262,19 @@ def test_manual_last_contacted_blocks_every_channel(master_with_firms, tmp_path)
     for channel in ("post", "email"):
         criteria = Criteria(channel=channel, not_contacted_days=30)
         assert make_list(m.path, dnc, tmp_path / "l.csv", criteria, today=date(2026, 12, 1)) == 0
+
+
+@pytest.mark.parametrize("channel", ["post", "email"])
+def test_each_address_sent_once(tmp_path, channel):
+    m = MasterList.load(tmp_path / "master.xlsx")
+    # three register entries that all matched the same website
+    for i, name in enumerate(("Robert Law", "Robert Law Pty Ltd", "Robert Legal")):
+        m.upsert(crawl_row(firm_name=name, abn=f"{i + 1}1 111 111 111", website="robertlaw.example"))
+    m.save()
+    dnc = tmp_path / "dnc.csv"
+    dnc.write_text(DNC_HEADER)
+    stats: dict = {}
+    out = tmp_path / "list.csv"
+    assert make_list(m.path, dnc, out, Criteria(channel=channel), mark_contacted=True, stats=stats) == 1
+    assert stats == {"duplicates": 2}
+    assert len(MasterList.load(m.path).campaigns) == 1  # only the firm actually sent to is logged

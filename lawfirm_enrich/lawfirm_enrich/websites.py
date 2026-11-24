@@ -9,6 +9,7 @@ far less likely than a missed one.
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 
 from .extract import _PARKED_RE
 from .inputs import normalise_abn
@@ -102,3 +103,45 @@ def verify(text: str, firm_name: str, abns: list[str], *, state: str = "", postc
         return ""  # shows an address, but in another state: probably a same-named firm
     return "name on site (location unconfirmed)"
     return ""
+
+
+# Website builders where a firm's site is a page or subdomain of a shared host:
+# the full address is kept, as the host's own home page is not the firm's.
+_SITE_BUILDERS = (
+    "sites.google.com", "wixsite.com", "weebly.com", "wordpress.com", "blogspot.com", "business.site",
+    "godaddysites.com", "square.site", "squarespace.com", "webflow.io", "jimdosite.com",
+)  # fmt: skip
+# Pages about a firm that are not its own website (social media, directories)
+_NOT_FIRM_SITES = (
+    "facebook.com", "linkedin.com", "instagram.com", "twitter.com", "x.com", "youtube.com", "google.com",
+    "yellowpages.com.au", "truelocal.com.au", "hotfrog.com.au", "localsearch.com.au", "yelp.com",
+)  # fmt: skip
+
+
+def _on(host: str, domains: tuple[str, ...]) -> bool:
+    return any(host == d or host.endswith("." + d) for d in domains)
+
+
+def website_for(final_url: str) -> str | None:
+    """The website to record for the page a guessed domain led to, or None if it is not the firm's own site."""
+    parts = urlsplit(final_url)
+    host = (parts.hostname or "").lower()
+    if _on(host, _SITE_BUILDERS):
+        return f"{parts.scheme}://{parts.netloc}{parts.path or '/'}"
+    if _on(host, _NOT_FIRM_SITES):
+        return None
+    return f"{parts.scheme}://{parts.netloc}{parts.path or '/'}"
+
+
+def is_site_builder_home(url: str) -> bool:
+    """True for a website builder's own home page (e.g. https://sites.google.com/), which is no firm's site."""
+    parts = urlsplit(url if "://" in url else "https://" + url)
+    return _on((parts.hostname or "").lower(), _SITE_BUILDERS) and parts.path in ("", "/")
+
+
+def redirected_elsewhere(guessed_domain: str, final_url: str, firm_name: str) -> bool:
+    """True if a guess led to a different site whose address shares no word with the firm's name."""
+    final_host = (urlsplit(final_url).hostname or "").lower().removeprefix("www.")
+    if final_host == guessed_domain or final_host.endswith("." + guessed_domain):
+        return False
+    return not any(token in final_host for token in name_tokens(firm_name))

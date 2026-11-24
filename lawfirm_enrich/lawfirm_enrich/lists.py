@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .addresses import ParsedAddress, split_address
-from .inputs import DoNotContactList
+from .inputs import DoNotContactList, host_of
 from .items import EMAIL_COLUMNS
 from .master import MasterList, _as_date, _norm, sync_opt_outs
 from .privacy import scrub_emails
@@ -170,11 +170,16 @@ def make_list(
     campaign: str = "",
     today: date | None = None,
     unsubscribed_path: str | Path | None = None,
+    stats: dict | None = None,
 ) -> int:
     """Write a CSV of firms matching *criteria*; return how many were written.
 
     Addresses in *unsubscribed_path* are removed first, so they are never
-    exported. With *mark_contacted*, the send is recorded against *campaign*.
+    exported. Firms sharing a website (several register entries for one firm)
+    get one letter or email between them, and an email address is never used
+    twice, so no firm is sent the same campaign twice; *stats*, if given, gets
+    ``stats["duplicates"]``, the number left out for that reason. With
+    *mark_contacted*, the send is recorded against *campaign*.
     """
     today = today or date.today()
     sync_opt_outs(master_path, dnc_path)
@@ -186,9 +191,26 @@ def make_list(
     rows = select(master, dnc, criteria, today)
 
     if criteria.channel == "email":
-        columns, out_rows = EMAIL_LIST_COLUMNS, [to_email_row(r) for r in rows]
+        columns, candidates = EMAIL_LIST_COLUMNS, [(r, to_email_row(r)) for r in rows]
     else:
-        columns, out_rows = POSTAL_LIST_COLUMNS, [to_postal_row(r, criteria) for r in rows]
+        columns, candidates = POSTAL_LIST_COLUMNS, [(r, to_postal_row(r, criteria)) for r in rows]
+    # Several register entries can match the same website, i.e. the same firm:
+    # each website gets one letter or email, and each email address one email.
+    seen: set[str] = set()
+    rows, out_rows = [], []
+    for row, out in candidates:
+        keys = {f"site:{host_of(_norm(row.get('final_url')) or _norm(row.get('website')))}"} - {"site:"}
+        if criteria.channel == "email":
+            keys.add(f"email:{out['email'].lower()}")
+        elif not keys:
+            keys.add(f"address:{out['full_address'].lower()}")
+        if keys & seen:
+            continue
+        seen |= keys
+        rows.append(row)
+        out_rows.append(out)
+    if stats is not None:
+        stats["duplicates"] = len(candidates) - len(rows)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8-sig") as fh:  # BOM so Excel reads UTF-8

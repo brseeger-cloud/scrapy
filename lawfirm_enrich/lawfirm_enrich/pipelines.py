@@ -221,7 +221,12 @@ class ExcelExportPipeline:
         logger.info(f"Wrote {len(rows)} rows to {xlsx}; {len(failed)} failed sites logged to {csv_path}")
 
 
-_WEBSITE_FOUND_KEYS = ("ABN_on_site", "name_on_site", "name_on_site_(location_unconfirmed)")
+_WEBSITE_FOUND_KEYS = (
+    "ABN_on_site",
+    "name_on_site",
+    "name_on_site_(location_unconfirmed)",
+    "name_on_site_(redirected_to_another_site)",
+)
 
 
 class WebsiteListPipeline:

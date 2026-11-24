@@ -197,10 +197,16 @@ obeying robots.txt and with the same user agent, and a site is accepted only if:
 | `ABN on site` | the page shows the firm's ABN (strongest) |
 | `name on site` | the firm's distinctive name, legal wording, and its postcode or state |
 | `name on site (location unconfirmed)` | name and legal wording, but no address on the home page. Worth a quick look |
+| `name on site (redirected to another site)` | the guessed address redirected to a site whose address shares no word with the firm's name, e.g. a rebrand or a news article. Worth a look |
 | `not found` | no guess matched |
 
-Parked "domain for sale" pages are rejected, as are pages whose only address is in another state
-(probably a same-named firm elsewhere). Firms that don't use their name as their domain are not
+Some pages are rejected:
+- parked "domain for sale" pages
+- pages whose only address is in another state (probably a same-named firm elsewhere)
+- social media and directory pages (Facebook, LinkedIn, Yellow Pages, …)
+
+A firm's page on a website builder (Google Sites, Wix, …) is kept with its full address. A
+builder's own home page, such as `https://sites.google.com/`, is never treated as a firm's site. Firms that don't use their name as their domain are not
 found; fill those in by hand if they matter.
 
 **How it handles firms.csv:**
@@ -370,6 +376,11 @@ site refuses unsolicited email are always left out.
 | `--mark-contacted` | record the send: sets `last_mailed` / `last_emailed` and logs each firm in the Campaigns sheet |
 | `--campaign NAME` | the campaign name recorded with `--mark-contacted` |
 | `--out FILE` | where to write (default `output/mailing_list.csv` or `output/email_list.csv`) |
+
+**Each firm is sent a campaign once.** Several register entries can match the same website, for
+example "Robert Law" and "Robert Law Pty Ltd". They get one letter or email between them, and no
+email address is used twice. The command reports how many duplicates it left out. Different firms
+that merely share a postal address (shared offices) each still get their letter.
 
 **Never exported, whatever the options:**
 - firms classified `Exclude`

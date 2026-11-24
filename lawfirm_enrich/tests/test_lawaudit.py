@@ -21,7 +21,7 @@ def lawaudit(*args, cwd):
 def row(name, abn, **kw):
     r = dict.fromkeys(OUTPUT_COLUMNS, "")
     r.update(firm_name=name, abn=abn, classification="Sole", postal_address="PO Box 1, Sydney NSW 2001",
-             crawl_status="ok", date_collected="2026-11-01")  # fmt: skip
+             crawl_status="ok", date_collected="2026-11-01", website=f"https://{name.split()[0].lower()}.example/")  # fmt: skip
     r.update(kw)
     return r
 

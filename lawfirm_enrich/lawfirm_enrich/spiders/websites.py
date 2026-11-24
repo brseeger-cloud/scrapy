@@ -5,14 +5,13 @@ from __future__ import annotations
 import csv
 import logging
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import scrapy
 from scrapy.http import HtmlResponse
 
 from ..extract import html_to_lines
 from ..inputs import DoNotContactList
-from ..websites import candidate_domains, verify
+from ..websites import candidate_domains, redirected_elsewhere, verify, website_for
 
 logger = logging.getLogger(__name__)
 
@@ -104,9 +103,16 @@ class WebsitesSpider(scrapy.Spider):
             how = verify(
                 text, row.get("firm_name", ""), abns, state=row.get("state", ""), postcode=row.get("postcode", "")
             )
-            if how:
-                parts = urlsplit(response.url)
-                yield {"row": i, "website": f"{parts.scheme}://{parts.netloc}/", "found_by": how}
+            website = website_for(response.url) if how else None
+            if website:
+                if (
+                    how.startswith("name on site")
+                    and response.meta.get("redirect_urls")
+                    and redirected_elsewhere(domains[k], response.url, row["firm_name"])
+                ):
+                    # e.g. an old domain now pointing at a news article or another firm: worth a look
+                    how = "name on site (redirected to another site)"
+                yield {"row": i, "website": website, "found_by": how}
                 return
         yield from self._next(i, domains, k)
 

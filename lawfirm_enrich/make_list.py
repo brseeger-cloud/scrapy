@@ -109,6 +109,7 @@ def main(argv: list[str] | None = None) -> int:
         require_address=not args.include_no_address,
         general_email_only=args.general_email_only,
     )
+    stats: dict = {}
     n = make_list(
         args.master,
         args.dnc,
@@ -116,9 +117,12 @@ def main(argv: list[str] | None = None) -> int:
         criteria,
         mark_contacted=args.mark_contacted,
         campaign=args.campaign,
+        stats=stats,
         unsubscribed_path=args.unsubscribed,
     )
     print(f"Wrote {n} firms to {args.out}" + (" and marked them contacted today" if args.mark_contacted and n else ""))
+    if stats.get("duplicates"):
+        print(f"Left out {stats['duplicates']} duplicate(s): same website or email as a firm already on the list")
     return 0
 
 

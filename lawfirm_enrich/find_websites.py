@@ -74,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Found by name:  {stats.get('websites/name_on_site', 0)}")
     unconfirmed = stats.get("websites/name_on_site_(location_unconfirmed)", 0)
     print(f"Found by name, location unconfirmed (worth a look): {unconfirmed}")
+    redirected = stats.get("websites/name_on_site_(redirected_to_another_site)", 0)
+    print(f"Found by name, redirected to another site (worth a look): {redirected}")
     print(f"Not found:      {stats.get('websites/not_found', 0)}")
     print(f"Updated:        {args.input}")
     print(f"Log file:       {log_file}")

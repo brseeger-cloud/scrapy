@@ -28,6 +28,7 @@ from ..extract import Page, analyse, html_to_lines
 from ..inputs import DoNotContactList, Firm, host_of, read_firms
 from ..items import build_row
 from ..master import MasterList, firm_key, sync_opt_outs
+from ..websites import is_site_builder_home
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,7 @@ class FirmsSpider(scrapy.Spider):
             if firm_key(firm.abn, firm.website, firm.firm_name) in recent:
                 stats.inc_value("lawfirm/skipped_recent")
                 continue
-            if not firm.url:
+            if not firm.url or is_site_builder_home(firm.url):
                 stats.inc_value("lawfirm/no_website")
                 yield self._row(
                     FirmState(firm, self.max_pages), status="no website", error="no usable website in input"

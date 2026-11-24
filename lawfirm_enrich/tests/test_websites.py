@@ -7,7 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from lawfirm_enrich.websites import candidate_domains, name_tokens, verify
+from lawfirm_enrich.websites import (
+    candidate_domains,
+    is_site_builder_home,
+    name_tokens,
+    redirected_elsewhere,
+    verify,
+    website_for,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS = Path(__file__).resolve().parent
@@ -107,3 +114,40 @@ def test_find_websites(sites, tmp_path):
     # a second run skips firms already checked
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
     assert "Firms checked:  0" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "final_url,website",
+    [
+        ("https://www.smithlawyers.com.au/", "https://www.smithlawyers.com.au/"),
+        ("https://www.smithlawyers.com.au/home?utm=x", "https://www.smithlawyers.com.au/home"),
+        ("https://sites.google.com/view/smithlawyers", "https://sites.google.com/view/smithlawyers"),
+        ("https://smithlawyers.wixsite.com/home", "https://smithlawyers.wixsite.com/home"),
+        ("https://www.facebook.com/smithlawyers", None),  # social media is not the firm's own site
+        ("https://www.yellowpages.com.au/nsw/smith-lawyers", None),
+    ],
+)
+def test_website_for(final_url, website):
+    assert website_for(final_url) == website
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [("https://sites.google.com/", True), ("sites.google.com", True),
+     ("https://sites.google.com/view/smith", False), ("https://smithlawyers.com.au/", False)],
+)  # fmt: skip
+def test_is_site_builder_home(url, expected):
+    assert is_site_builder_home(url) is expected
+
+
+@pytest.mark.parametrize(
+    "guess,final_url,expected",
+    [
+        ("smithlawyers.com.au", "https://www.smithlawyers.com.au/", False),  # same site
+        ("smithlawyers.com.au", "https://smith-partners.com.au/", False),  # rebrand: name still in the address
+        ("primafacielaw.com.au", "https://www.newsdaily.example/article/123", True),
+    ],
+)
+def test_redirected_elsewhere(guess, final_url, expected):
+    firm = "Prima Facie Law" if guess.startswith("prima") else "Smith Lawyers"
+    assert redirected_elsewhere(guess, final_url, firm) is expected

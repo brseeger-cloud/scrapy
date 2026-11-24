@@ -25,6 +25,8 @@ def test_full_run(sites, tmp_path):
         ("Big Law Firm", "99 999 999 999", "Australian Private Company", "NSW", "2000", sites["bigsite"].url),
         ("Dead Site Lawyers", "10 101 010 101", "Australian Private Company", "NSW", "2000", "http://127.0.0.1:9/"),
         ("No Website Legal", "12 121 212 121", "Family Partnership", "SA", "5000", ""),
+        # only a website builder's home page was recorded: not the firm's site, never requested
+        ("Google Sites Legal", "13 131 313 131", "Family Partnership", "SA", "5000", "https://sites.google.com/"),
     ]
     firms = tmp_path / "firms.csv"
     with firms.open("w", newline="") as fh:
@@ -69,7 +71,7 @@ def test_full_run(sites, tmp_path):
     )
     log = "".join(p.read_text() for p in (tmp_path / "logs").glob("*.log"))
     assert result.returncode == 0, result.stderr + log
-    assert "10 of 10 firms done, 2 sites failed" in result.stdout  # 11 firms, 1 on the do-not-contact list
+    assert "11 of 11 firms done, 2 sites failed" in result.stdout  # 12 firms, 1 on the do-not-contact list
 
     # do-not-contact: never requested, not in output
     assert sites["optedout"].requests == []
@@ -147,13 +149,14 @@ def test_full_run(sites, tmp_path):
     assert data["Blocked Lawyers"]["crawl_status"] == "failed"
     assert data["Dead Site Lawyers"]["crawl_status"] == "failed"
     assert data["No Website Legal"]["crawl_status"] == "no website"
+    assert data["Google Sites Legal"]["crawl_status"] == "no website"
 
     with failed.open() as fh:
         failed_rows = {r["firm_name"]: r for r in csv.DictReader(fh)}
-    assert set(failed_rows) == {"Blocked Lawyers", "Dead Site Lawyers", "No Website Legal"}
+    assert set(failed_rows) == {"Blocked Lawyers", "Dead Site Lawyers", "No Website Legal", "Google Sites Legal"}
     assert failed_rows["Blocked Lawyers"]["error"] == "blocked by robots.txt"
     assert "refused" in failed_rows["Dead Site Lawyers"]["error"]
-    assert wb["Failed sites"].max_row == 4
+    assert wb["Failed sites"].max_row == 5
 
     info = {r[0]: r[1] for r in wb["Run info"].iter_rows(min_row=2, values_only=True)}
     assert info["excluded: on do-not-contact list (not crawled, not in output)"] == 1
