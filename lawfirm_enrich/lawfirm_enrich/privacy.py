@@ -1,9 +1,10 @@
 """Email-address scrubbing.
 
-The project must never collect or store email addresses. Every piece of text
-taken from a web page passes through :func:`scrub_emails` before it is
-analysed, and every value is checked again by the EmailScrubPipeline and the
-Excel/CSV writers before it is written to disk.
+Email addresses are stored only in the dedicated email columns (see
+``items.EMAIL_COLUMNS`` and ``emails.py`` for what is collected). Page text
+passes through :func:`scrub_emails` before it is analysed, and every other
+value is checked again by the EmailScrubPipeline and the Excel/CSV writers, so
+an address can never end up in a name, note or address column by accident.
 """
 
 from __future__ import annotations

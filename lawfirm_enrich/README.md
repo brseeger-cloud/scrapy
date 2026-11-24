@@ -27,17 +27,38 @@ For each row of `firms.csv`:
    - principal name(s) (Principal, Partner, Director, Founder, …)
    - practice areas: Conveyancing, Wills & Estates, Family, Personal Injury, Commercial, Criminal
    - postal address / PO Box, and street address
+   - published email addresses (see [Email addresses](#email-addresses))
    - the URLs of the pages used
 4. **Classify** as `Sole`, `Small (2-4)`, `Larger`, `Exclude` or `Check manually`.
    `exclude_reason` is one of `barrister`, `in-house`, `government`, `licensed conveyancer` or
    `not a law firm`.
 
-**No email addresses are collected or stored.** `mailto:` links are dropped before any text is read.
-Email-like strings (including `name [at] firm [dot] com`) are removed from page text before analysis.
-Every output value is scrubbed again in the pipeline and once more when the spreadsheet is written.
-Pages are never cached to disk, and the log level keeps page content out of the log. If `firms.csv`
-has extra columns (for example an email column), they are ignored; only the six documented columns
-are read.
+## Email addresses
+
+Email addresses are collected only in ways that support **inferred consent** under the Spam Act
+2003, which allows commercial email to an address that is conspicuously published, if the message
+is relevant to the recipient's work and the site has no statement refusing unsolicited messages.
+
+- **Only plainly published addresses:** `mailto:` links and addresses written out on the page.
+  Addresses a site has deliberately hidden (`jane [at] firm [dot] com`, Cloudflare email
+  protection, images) are never decoded.
+- **Only the firm's own addresses:** on the firm's website domain, or a common webmail domain
+  (Bigpond, Gmail, …) that many sole practitioners use. Third-party addresses (web designers, law
+  societies) are dropped, as are careers, privacy, accounts and no-reply addresses.
+- **Evidence kept:**
+  - `email_source_url`: the page each address came from
+  - `email_type`: `general` (info@, reception@, …) or `personal` (an individual's address)
+  - `no_unsolicited_email_notice`: any sentence where the site refuses unsolicited email. Firms
+    with one are never put on an email list.
+- **Nowhere else:** email addresses appear only in the `email` and `other_emails` columns. Every
+  other value is scrubbed of anything that looks like an address. Pages are never cached to disk,
+  and the log level keeps page content out of the log.
+
+**Before you send:** each email must identify you, include a working unsubscribe link, and be
+relevant to the recipient's legal practice. Act on unsubscribes within 5 business days by marking
+the firm "Opted out". The Spam Act also restricts using "harvested" address lists to send email
+that breaks these consent rules. This is a summary, not legal advice: check ACMA's guidance, or ask
+a lawyer, before your first email campaign.
 
 ## Crawl settings
 
@@ -178,13 +199,19 @@ python make_list.py --size Sole "Small (2-4)" --state NSW VIC --area conveyancin
 | `--state` | states to include (default: all) |
 | `--area` | firms doing at least one of these: `conveyancing`, `wills_estates`, `family`, `personal_injury`, `commercial`, `criminal` (default: any) |
 | `--not-contacted-days N` | leave out firms contacted in the last N days |
-| `--include-no-address` | include firms with no postal address found (left out by default) |
+| `--channel post\|email` | `post` (default): firms with a postal address. `email`: firms with a published email address and no refusal notice |
+| `--general-email-only` | email channel: only general addresses such as info@, not individuals' |
+| `--include-no-address` | post channel: include firms with no postal address found (left out by default) |
 | `--mark-contacted` | set `last_contacted` to today for every firm exported |
 
 The CSV has `firm_name`, `addressee` (the first principal, or "The Principal"), `postal_address`,
-`state`, `postcode`, `classification`, `solicitor_count`, `practice_areas`, `website` and
+`email`, `email_type`, `state`, `postcode`, `classification`, `solicitor_count`, `practice_areas`, `website` and
 `firm_key`. It opens directly in Excel and works with Word mail merge. Firms classified `Exclude`
-and firms on `do_not_contact.csv` are never exported, whatever the options.
+and firms on `do_not_contact.csv` are never exported, whatever the options. For an email list:
+
+```bash
+python make_list.py --channel email --general-email-only --not-contacted-days 90 --out output/email_list.csv --mark-contacted
+```
 
 ### Recommended cycle
 
@@ -223,6 +250,9 @@ minutes, depending on how fast the sites respond.
 | `postal_address` | PO Box / labelled postal address if found, otherwise the street address |
 | `po_box`, `street_address` | as found |
 | `address_postcode_matches_input` | Y/N: postcode of `postal_address` vs input `postcode` |
+| `email`, `email_type`, `other_emails` | best published address (general addresses first), its type, and up to 4 more |
+| `email_source_url` | the page the address came from |
+| `no_unsolicited_email_notice` | the site's statement refusing unsolicited email, if any |
 | `crawl_status` | `ok`, `ok (some pages failed)`, `failed`, `no website` |
 | `final_url` | home page after redirects |
 | `pages_used`, `pages_failed` | every page URL read (and any that failed), one per line |
@@ -269,7 +299,7 @@ localhost (`tests/sites/`). It checks:
 - the do-not-contact exclusion (the site gets zero requests), including opt-outs marked in the
   master list
 - robots.txt blocking and the 6-page cap
-- that no email addresses appear in the output
+- which email addresses are collected, and that no address appears outside the email columns
 - the classifications and the failed-sites log
 - the master list, and resuming with `--skip-crawled-within`
 
@@ -293,7 +323,8 @@ lawfirm_enrich/
 │   ├── extract.py              # text, people/roles, practice areas, addresses, exclusion signals
 │   ├── classify.py             # Sole / Small / Larger / Exclude / Check manually
 │   ├── inputs.py               # firms.csv and do_not_contact.csv
-│   ├── privacy.py              # email scrubbing
+│   ├── emails.py               # which published email addresses are collected
+│   ├── privacy.py              # email scrubbing for every other column
 │   ├── pipelines.py            # do-not-contact → email scrub → master list → Excel export
 │   ├── master.py               # the master list (data/master.xlsx)
 │   ├── lists.py                # selecting firms for a mailing list

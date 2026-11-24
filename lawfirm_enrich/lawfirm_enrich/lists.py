@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .inputs import DoNotContactList
+from .items import EMAIL_COLUMNS
 from .master import MasterList, _as_date, _norm, sync_opt_outs
 from .privacy import scrub_emails
 
@@ -17,6 +18,8 @@ LIST_COLUMNS = [
     "firm_name",
     "addressee",
     "postal_address",
+    "email",
+    "email_type",
     "state",
     "postcode",
     "classification",
@@ -33,7 +36,9 @@ class Criteria:
     states: list[str] = field(default_factory=list)  # empty = all
     areas: list[str] = field(default_factory=list)  # empty = any; otherwise at least one
     not_contacted_days: int = 0  # 0 = ignore last_contacted
-    require_address: bool = True
+    channel: str = "post"  # "post": needs a postal address; "email": needs an email address
+    require_address: bool = True  # post channel only
+    general_email_only: bool = False  # email channel only: skip individuals' addresses
 
 
 def select(master: MasterList, dnc: DoNotContactList, criteria: Criteria, today: date | None = None) -> list[dict]:
@@ -55,8 +60,16 @@ def select(master: MasterList, dnc: DoNotContactList, criteria: Criteria, today:
             continue
         if criteria.areas and not any(_norm(row.get(a)).upper() == "Y" for a in criteria.areas):
             continue
-        if criteria.require_address and not _norm(row.get("postal_address")):
+        if criteria.channel == "post" and criteria.require_address and not _norm(row.get("postal_address")):
             continue
+        if criteria.channel == "email":
+            if not _norm(row.get("email")):
+                continue
+            # A site that refuses unsolicited email gives no inferred consent: never selected.
+            if _norm(row.get("no_unsolicited_email_notice")):
+                continue
+            if criteria.general_email_only and _norm(row.get("email_type")) != "general":
+                continue
         if criteria.not_contacted_days:
             last = _as_date(row.get("last_contacted"))
             if last and last > today - timedelta(days=criteria.not_contacted_days):
@@ -69,7 +82,7 @@ def to_list_row(row: dict) -> dict:
     principals = [p.strip() for p in _norm(row.get("principal_names")).split(";") if p.strip()]
     out = {c: _norm(row.get(c)) for c in LIST_COLUMNS}
     out["addressee"] = principals[0] if principals else "The Principal"
-    return {k: scrub_emails(v) for k, v in out.items()}
+    return {k: v if k in EMAIL_COLUMNS else scrub_emails(v) for k, v in out.items()}
 
 
 def make_list(

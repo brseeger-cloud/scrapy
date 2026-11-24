@@ -24,13 +24,12 @@ from datetime import date, datetime
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from .export import safe_cell
 from .inputs import DNC_COLUMNS, DoNotContactList, host_of, normalise_abn, normalise_name, normalise_url
 from .items import OUTPUT_COLUMNS
-from .privacy import contains_email, scrub_emails
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +51,7 @@ TRACKED_COLUMNS = [
     "practice_areas",
     "postal_address",
     "street_address",
+    "email",
     "crawl_status",
 ]
 # Crawl results that only reflect the latest attempt, updated even when it failed
@@ -229,14 +229,6 @@ class MasterList:
         return out
 
 
-def _safe(value):
-    if isinstance(value, str):
-        if contains_email(value):
-            value = scrub_emails(value)
-        return ILLEGAL_CHARACTERS_RE.sub("", value)
-    return value
-
-
 def _write(ws, columns: list[str], rows) -> None:
     ws.append(columns)
     for cell in ws[1]:
@@ -244,7 +236,7 @@ def _write(ws, columns: list[str], rows) -> None:
         is_user = cell.value in USER_COLUMNS
         cell.fill = PatternFill("solid", fgColor="C65911" if is_user else "305496")
     for row in rows:
-        ws.append([_safe(row.get(c, "")) for c in columns])
+        ws.append([safe_cell(row.get(c, ""), c) for c in columns])
     for idx, col in enumerate(columns, start=1):
         letter = get_column_letter(idx)
         ws.column_dimensions[letter].width = (

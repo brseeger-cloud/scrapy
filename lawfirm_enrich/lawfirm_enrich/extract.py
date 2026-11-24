@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from parsel import Selector
 
+from .emails import email_type, find_no_unsolicited_notice
 from .privacy import scrub_emails
 
 # --------------------------------------------------------------------------
@@ -64,7 +65,8 @@ class Page:
 
     url: str
     category: str  # home / about / team / contact
-    lines: list[str]
+    lines: list[str]  # visible text, with email addresses removed
+    emails: list[str] = field(default_factory=list)  # published addresses (see emails.py)
 
     @property
     def text(self) -> str:
@@ -966,6 +968,9 @@ class Analysis:
     address: Address = field(default_factory=Address)
     sole_phrase: bool = False
     signals: list[Signal] = field(default_factory=list)
+    emails: list[str] = field(default_factory=list)  # best first: general addresses, then personal
+    email_source_url: str = ""
+    no_unsolicited_notice: str = ""
 
 
 def analyse(firm_name: str, entity_type: str, host: str, pages: list[Page]) -> Analysis:
@@ -1016,4 +1021,15 @@ def analyse(firm_name: str, entity_type: str, host: str, pages: list[Page]) -> A
     a.practice_areas = extract_practice_areas(all_text)
     a.address = extract_address(pages)
     a.signals = detect_signals(firm_name, entity_type, host, pages, len(lawyers))
+
+    order = {"contact": 0, "home": 1, "about": 2, "team": 3}
+    by_page = sorted(pages, key=lambda p: order.get(p.category, 9))
+    found: list[str] = []
+    for page in by_page:
+        for addr in page.emails:
+            if addr not in found:
+                found.append(addr)
+                a.email_source_url = a.email_source_url or page.url
+    a.emails = sorted(found, key=lambda e: email_type(e) != "general")  # stable: keeps page order
+    a.no_unsolicited_notice = next((n for n in (find_no_unsolicited_notice(p.lines) for p in by_page) if n), "")
     return a

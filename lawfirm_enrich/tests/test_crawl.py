@@ -87,8 +87,9 @@ def test_full_run(sites, tmp_path):
         assert row["date_collected"]
         if row["crawl_status"] != "no website":
             assert row["source_url"].startswith("http://127.0.0.1")
-        for v in row.values():
-            assert not (isinstance(v, str) and contains_email(v)), v
+        for col, v in row.items():
+            if col not in ("email", "other_emails"):
+                assert not (isinstance(v, str) and contains_email(v)), (col, v)
 
     sole = data["Citizen Legal"]
     assert sole["classification"] == "Sole"
@@ -99,6 +100,10 @@ def test_full_run(sites, tmp_path):
     assert sole["conveyancing"] == "Y" and sole["wills_estates"] == "Y" and sole["criminal"] == "N"
     assert "/contact" in sole["pages_used"] and "/about-us" in sole["pages_used"]
     assert "/blog" not in sole["pages_used"]
+    # published webmail address kept; other-domain and obfuscated addresses are not
+    assert (sole["email"], sole["email_type"], sole["other_emails"]) == ("citizenlegal@bigpond.com", "general", None)
+    assert sole["email_source_url"].endswith("/contact/")
+    assert sole["no_unsolicited_email_notice"] is None
     assert sole["crawl_status"] == "ok" and sole["pages_failed"] is None  # guessed /our-team 404 is not a failure
 
     partners = data["Example Partners"]
@@ -116,6 +121,9 @@ def test_full_run(sites, tmp_path):
     assert small["classification"] == "Small (2-4)"
     assert small["solicitor_count"] == 3
     assert small["principal_names"] == "Alice Nguyen"
+    assert small["email"] == "alice.nguyen.law@gmail.com" and small["email_type"] == "personal"
+    assert "do not accept unsolicited commercial emails" in small["no_unsolicited_email_notice"]
+    assert data["Example Partners"]["email"] is None  # rob@partners.example is not on the site's domain
 
     assert (data["John Smith SC"]["classification"], data["John Smith SC"]["exclude_reason"]) == (
         "Exclude",

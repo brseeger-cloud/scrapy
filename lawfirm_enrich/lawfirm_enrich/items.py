@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .classify import Classification
+from .emails import email_type
 from .extract import Analysis
 from .inputs import Firm
 
@@ -32,6 +33,11 @@ OUTPUT_COLUMNS = [
     "po_box",
     "street_address",
     "address_postcode_matches_input",
+    "email",
+    "email_type",
+    "other_emails",
+    "email_source_url",
+    "no_unsolicited_email_notice",
     "crawl_status",
     "final_url",
     "pages_used",
@@ -41,6 +47,9 @@ OUTPUT_COLUMNS = [
     "address_source_url",
     "date_collected",
 ]
+
+# The only columns allowed to hold email addresses; everything else is scrubbed.
+EMAIL_COLUMNS = frozenset({"email", "other_emails"})
 
 # Column order of the failed-sites log (sheet + failed_sites.csv)
 FAILED_COLUMNS = ["input_row", "firm_name", "abn", "website", "failed_url", "error", "date_collected"]
@@ -94,6 +103,12 @@ def build_row(
         row["po_box"] = addr.po_box
         row["street_address"] = addr.street
         row["address_source_url"] = addr.source_url
+        if analysis.emails:
+            row["email"] = analysis.emails[0]
+            row["email_type"] = email_type(analysis.emails[0])
+            row["other_emails"] = "; ".join(analysis.emails[1:5])
+            row["email_source_url"] = analysis.email_source_url
+        row["no_unsolicited_email_notice"] = analysis.no_unsolicited_notice
         if addr.postcode and firm.postcode:
             row["address_postcode_matches_input"] = "Y" if addr.postcode == firm.postcode.strip().zfill(4) else "N"
     return row

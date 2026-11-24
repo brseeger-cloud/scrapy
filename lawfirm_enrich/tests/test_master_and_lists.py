@@ -26,6 +26,8 @@ def crawl_row(**overrides):
         conveyancing="Y",
         family="N",
         crawl_status="ok",
+        email="info@smith.example",
+        email_type="general",
         date_collected="2026-11-01",
     )
     row.update(overrides)
@@ -128,10 +130,20 @@ def master_with_firms(tmp_path):
             state="VIC",
             conveyancing="N",
             family="Y",
+            email="sam.solo@solo.example",
+            email_type="personal",
         )
     )
     m.upsert(crawl_row(firm_name="Chambers", abn="33 333 333 333", website="ch.example", classification="Exclude"))
-    m.upsert(crawl_row(firm_name="No Address Law", abn="44 444 444 444", website="na.example", postal_address=""))
+    m.upsert(
+        crawl_row(
+            firm_name="No Address Law",
+            abn="44 444 444 444",
+            website="na.example",
+            postal_address="",
+            no_unsolicited_email_notice="We do not accept unsolicited emails.",
+        )
+    )
     m.upsert(
         crawl_row(firm_name="Unsure Law", abn="55 555 555 555", website="u.example", classification="Check manually")
     )
@@ -150,6 +162,8 @@ def master_with_firms(tmp_path):
         (Criteria(sizes=["Sole"]), ["Solo Law"]),
         (Criteria(require_address=False), ["No Address Law", "Smith Lawyers", "Solo Law"]),
         (Criteria(sizes=["Check manually"]), ["Unsure Law"]),
+        (Criteria(channel="email"), ["Smith Lawyers", "Solo Law"]),
+        (Criteria(channel="email", general_email_only=True), ["Smith Lawyers"]),
     ],
 )
 def test_select(master_with_firms, criteria, expected):
@@ -167,6 +181,7 @@ def test_make_list_excludes_dnc_and_marks_contacted(master_with_firms, tmp_path)
     assert text.splitlines()[0].startswith("firm_name,addressee,postal_address")
     assert 'Smith Lawyers,Jane Smith,"PO Box 1, Sydney NSW 2001"' in text
     assert "Solo Law" not in text
+    assert "info@smith.example,general" in text  # email columns are not scrubbed
 
     # contacted today, so a "not contacted in 90 days" list leaves it out
     assert make_list(m.path, dnc, out, Criteria(not_contacted_days=90), today=date(2026, 12, 15)) == 0

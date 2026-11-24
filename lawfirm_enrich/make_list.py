@@ -2,8 +2,11 @@
 
     python make_list.py --size Sole "Small (2-4)" --state NSW VIC --area conveyancing wills_estates \
         --not-contacted-days 180 --out output/mailing_list.csv --mark-contacted
+    python make_list.py --channel email --general-email-only --out output/email_list.csv
 
-Firms classified Exclude and firms on do_not_contact.csv are never included.
+Firms classified Exclude and firms on do_not_contact.csv are never included. The
+email channel also never includes a firm whose site says it does not accept
+unsolicited email.
 """
 
 from __future__ import annotations
@@ -45,7 +48,21 @@ def main(argv: list[str] | None = None) -> int:
         default=0,
         help="leave out firms whose last_contacted is within this many days",
     )
-    parser.add_argument("--include-no-address", action="store_true", help="include firms with no postal address found")
+    parser.add_argument(
+        "--channel",
+        choices=("post", "email"),
+        default="post",
+        help="post: firms with a postal address (default); email: firms with a published email address "
+        "and no 'no unsolicited email' notice on their site",
+    )
+    parser.add_argument(
+        "--general-email-only",
+        action="store_true",
+        help="email channel: only general addresses such as info@, not individuals' addresses",
+    )
+    parser.add_argument(
+        "--include-no-address", action="store_true", help="post channel: include firms with no postal address found"
+    )
     parser.add_argument(
         "--mark-contacted",
         action="store_true",
@@ -68,7 +85,9 @@ def main(argv: list[str] | None = None) -> int:
         states=args.state,
         areas=args.area,
         not_contacted_days=args.not_contacted_days,
+        channel=args.channel,
         require_address=not args.include_no_address,
+        general_email_only=args.general_email_only,
     )
     n = make_list(args.master, args.dnc, args.out, criteria, mark_contacted=args.mark_contacted)
     print(f"Wrote {n} firms to {args.out}" + (" and marked them contacted today" if args.mark_contacted and n else ""))

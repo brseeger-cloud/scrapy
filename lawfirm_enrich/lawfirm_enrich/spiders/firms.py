@@ -22,6 +22,7 @@ from scrapy.http import HtmlResponse
 from scrapy.spidermiddlewares.httperror import HttpError
 
 from ..classify import classify
+from ..emails import extract_emails
 from ..extract import Page, analyse, html_to_lines
 from ..inputs import DoNotContactList, Firm, host_of, read_firms
 from ..items import build_row
@@ -223,7 +224,12 @@ class FirmsSpider(scrapy.Spider):
             yield from self._next(state)
             return
 
-        page = Page(url=response.url, category=category, lines=html_to_lines(root=response.selector.root))
+        page = Page(
+            url=response.url,
+            category=category,
+            lines=html_to_lines(root=response.selector.root),
+            emails=extract_emails(response.selector.root, state.hosts),
+        )
         state.pages.append(page)
         self._discover_links(response, state)
         yield from self._next(state)

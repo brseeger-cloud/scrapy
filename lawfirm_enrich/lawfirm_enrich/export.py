@@ -12,6 +12,7 @@ from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from .items import EMAIL_COLUMNS
 from .privacy import contains_email, scrub_emails
 
 logger = logging.getLogger(__name__)
@@ -37,10 +38,10 @@ _FILLS = {
 }
 
 
-def _safe(value):
-    """Cell-safe value with email addresses guaranteed removed."""
+def safe_cell(value, column: str = ""):
+    """Cell-safe value; email addresses are removed unless *column* is an email column."""
     if isinstance(value, str):
-        if contains_email(value):
+        if column not in EMAIL_COLUMNS and contains_email(value):
             logger.warning("Removed an email-like string from an output cell")
             value = scrub_emails(value)
         return ILLEGAL_CHARACTERS_RE.sub("", value)
@@ -54,7 +55,7 @@ def _write_sheet(ws, columns: list[str], rows: list[dict]) -> None:
         cell.fill = PatternFill("solid", fgColor="305496")
         cell.alignment = Alignment(vertical="top", wrap_text=True)
     for row in rows:
-        ws.append([_safe(row.get(c, "")) for c in columns])
+        ws.append([safe_cell(row.get(c, ""), c) for c in columns])
     for idx, col in enumerate(columns, start=1):
         letter = get_column_letter(idx)
         ws.column_dimensions[letter].width = _WIDE.get(col, max(12, min(len(col) + 2, 28)))
@@ -116,5 +117,5 @@ def write_failed_csv(path: str | Path, columns: list[str], rows: list[dict]) -> 
         writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
-            writer.writerow({c: _safe(row.get(c, "")) for c in columns})
+            writer.writerow({c: safe_cell(row.get(c, ""), c) for c in columns})
     return path

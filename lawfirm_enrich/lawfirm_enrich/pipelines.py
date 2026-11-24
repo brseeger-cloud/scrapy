@@ -6,7 +6,7 @@ Order (see ITEM_PIPELINES in settings.py):
    (checked again here, after redirects, even though the spider already
    skips those firms before crawling).
 2. EmailScrubPipeline – removes anything that looks like an email address
-   from every field.
+   from every field except the email columns.
 3. MasterListPipeline – merges each row into the master list
    (data/master.xlsx), saving every 1,000 rows and at the end.
 4. ExcelExportPipeline – collects rows and writes firms_enriched.xlsx and
@@ -22,7 +22,7 @@ from scrapy.exceptions import DropItem
 
 from .export import write_failed_csv, write_workbook
 from .inputs import DoNotContactList, Firm
-from .items import FAILED_COLUMNS, OUTPUT_COLUMNS
+from .items import EMAIL_COLUMNS, FAILED_COLUMNS, OUTPUT_COLUMNS
 from .master import MasterList
 from .privacy import scrub_value
 
@@ -63,7 +63,7 @@ class DoNotContactPipeline:
 
 class EmailScrubPipeline:
     def process_item(self, item):
-        return scrub_value(dict(item))
+        return {k: v if k in EMAIL_COLUMNS else scrub_value(v) for k, v in dict(item).items()}
 
 
 class MasterListPipeline:
@@ -173,7 +173,10 @@ class ExcelExportPipeline:
             ("RETRY_TIMES", s.getint("RETRY_TIMES")),
             ("DOWNLOAD_TIMEOUT (s)", s.getint("DOWNLOAD_TIMEOUT")),
             ("max pages per site", s.getint("LAWFIRM_MAX_PAGES")),
-            ("email addresses collected", "none – all page text and output is scrubbed of email addresses"),
+            (
+                "email addresses",
+                "only plainly published addresses on the firm's own (or a webmail) domain, in the email columns",
+            ),
         ]
 
         xlsx = write_workbook(
