@@ -19,6 +19,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--input", default="firms.csv", help="input CSV (default: firms.csv)")
     parser.add_argument("--dnc", default="do_not_contact.csv", help="do-not-contact CSV (default: do_not_contact.csv)")
+    parser.add_argument(
+        "--unsubscribed", default="unsubscribed.csv", help="unsubscribed addresses (default: unsubscribed.csv)"
+    )
     parser.add_argument("--output", default="output/firms_enriched.xlsx", help="output workbook")
     parser.add_argument("--failed-log", default="output/failed_sites.csv", help="failed-sites CSV")
     parser.add_argument("--log-dir", default="logs", help="directory for the Scrapy log file")
@@ -50,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Resolve paths against the caller's directory, then run from the project
     # directory so Scrapy finds scrapy.cfg and the settings module.
-    for name in ("input", "dnc", "output", "failed_log", "log_dir", "master"):
+    for name in ("input", "dnc", "output", "failed_log", "log_dir", "master", "unsubscribed"):
         setattr(args, name, str(Path(getattr(args, name)).resolve()))
     os.chdir(HERE)
     os.environ.setdefault("SCRAPY_SETTINGS_MODULE", "lawfirm_enrich.settings")
@@ -75,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     settings.set("LOG_FILE", str(log_file), priority="cmdline")
     settings.set("LAWFIRM_OUTPUT_XLSX", args.output, priority="cmdline")
     settings.set("LAWFIRM_FAILED_CSV", args.failed_log, priority="cmdline")
+    settings.set("LAWFIRM_UNSUBSCRIBED_CSV", args.unsubscribed, priority="cmdline")
     settings.set("LAWFIRM_MASTER_XLSX", "" if args.no_master else args.master, priority="cmdline")
     settings.set("LAWFIRM_SKIP_CRAWLED_WITHIN_DAYS", args.skip_crawled_within, priority="cmdline")
     for item in args.set:

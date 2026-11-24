@@ -35,6 +35,8 @@ def test_full_run(sites, tmp_path):
     dnc.write_text("firm_name,abn,website,reason,date_added\n,88888888888,,opted out,2026-01-01\n")
     out = tmp_path / "out.xlsx"
     failed = tmp_path / "failed.csv"
+    unsubscribed = tmp_path / "unsubscribed.csv"
+    unsubscribed.write_text("email,date_added,source\nalice.nguyen.law@gmail.com,2026-11-01,test\n")
 
     result = subprocess.run(
         [
@@ -52,6 +54,8 @@ def test_full_run(sites, tmp_path):
             str(tmp_path / "logs"),
             "--master",
             str(tmp_path / "master.xlsx"),
+            "--unsubscribed",
+            str(unsubscribed),
             "-s",
             "DOWNLOAD_DELAY=0",
             "-s",
@@ -121,7 +125,7 @@ def test_full_run(sites, tmp_path):
     assert small["classification"] == "Small (2-4)"
     assert small["solicitor_count"] == 3
     assert small["principal_names"] == "Alice Nguyen"
-    assert small["email"] == "alice.nguyen.law@gmail.com" and small["email_type"] == "personal"
+    assert small["email"] is None  # published on the site, but unsubscribed: never stored
     assert "do not accept unsolicited commercial emails" in small["no_unsolicited_email_notice"]
     assert data["Example Partners"]["email"] is None  # rob@partners.example is not on the site's domain
 
@@ -171,6 +175,7 @@ def test_rerun_skips_recently_crawled_and_syncs_opt_outs(sites, tmp_path):
     dnc = tmp_path / "dnc.csv"
     dnc.write_text("firm_name,abn,website,reason,date_added\n")
     master_path = tmp_path / "master.xlsx"
+    unsubscribed = tmp_path / "unsubscribed.csv"  # absent on the first run
 
     def run(*extra):
         result = subprocess.run(
@@ -189,6 +194,8 @@ def test_rerun_skips_recently_crawled_and_syncs_opt_outs(sites, tmp_path):
                 str(tmp_path / "logs"),
                 "--master",
                 str(master_path),
+                "--unsubscribed",
+                str(unsubscribed),
                 "-s",
                 "DOWNLOAD_DELAY=0",
                 "-s",
@@ -216,6 +223,8 @@ def test_rerun_skips_recently_crawled_and_syncs_opt_outs(sites, tmp_path):
             r[header.index("my_notes")].value = "called, interested"
     wb.save(master_path)
     sole_before = len(sites["sole"].page_requests)
+    # an unsubscribe arriving between runs is applied to the master list on the next run
+    unsubscribed.write_text("email,date_added,source\nalice.nguyen.law@gmail.com,2026-11-01,test\n")
 
     run("--skip-crawled-within", "1")
     assert len(sites["small"].page_requests) == first  # crawled today already: skipped
@@ -227,3 +236,4 @@ def test_rerun_skips_recently_crawled_and_syncs_opt_outs(sites, tmp_path):
     remaining = [dict(zip(header, r, strict=False)) for r in ws.iter_rows(min_row=2, values_only=True)]
     assert [r["firm_name"] for r in remaining] == ["Small & Co Lawyers"]
     assert remaining[0]["my_notes"] == "called, interested"
+    assert remaining[0]["email"] is None

@@ -55,8 +55,8 @@ is relevant to the recipient's work and the site has no statement refusing unsol
   and the log level keeps page content out of the log.
 
 **Before you send:** each email must identify you, include a working unsubscribe link, and be
-relevant to the recipient's legal practice. Act on unsubscribes within 5 business days by marking
-the firm "Opted out". The Spam Act also restricts using "harvested" address lists to send email
+relevant to the recipient's legal practice. Unsubscribes must take effect within 5 business days
+(see [Unsubscribes](#unsubscribes)). The Spam Act also restricts using "harvested" address lists to send email
 that breaks these consent rules. This is a summary, not legal advice: check ACMA's guidance, or ask
 a lawyer, before your first email campaign.
 
@@ -282,6 +282,24 @@ and firms on `do_not_contact.csv` are never exported, whatever the options. For 
 python make_list.py --channel email --general-email-only --not-contacted-days 90 --out output/email_list.csv --mark-contacted
 ```
 
+### Unsubscribes
+
+When people unsubscribe, export the list from your email service (any CSV works: the email
+addresses are picked out of it automatically) and run:
+
+```bash
+python lawaudit.py unsubscribe ~/Downloads/unsubscribes.csv
+python lawaudit.py unsubscribe jane@smithlaw.com.au      # or type addresses directly
+```
+
+The addresses are added to `unsubscribed.csv` and removed from the master list straight away.
+From then on they are never stored by a crawl or put on any list. The firm's other addresses and
+its postal address can still be used, because an unsubscribe applies to the address that asked.
+
+To stop contacting the whole firm instead, add `--whole-firm`. The firm then goes on
+`do_not_contact.csv` and is removed from the master list. Keep `unsubscribed.csv` out of this
+public repository, like the other files with real data.
+
 ### Recommended cycle
 
 1. Build `firms.csv` (see [Building the firm list](#building-the-firm-list)), run
@@ -289,7 +307,8 @@ python make_list.py --channel email --general-email-only --not-contacted-days 90
    hours, so run it overnight.
 2. Review the `Check manually` rows in the master list.
 3. Run `make_list.py` for each campaign, with `--mark-contacted`.
-4. Mark opt-outs in `my_status` as they come in.
+4. Process unsubscribes at least weekly (`lawaudit.py unsubscribe …`), and mark firms that ask
+   not to be contacted at all as "Opted out" in `my_status`.
 5. Monthly or quarterly, run `python run.py --skip-crawled-within 90` to refresh.
 
 ### Keep real data out of this repository
@@ -398,6 +417,7 @@ lawfirm_enrich/
 │   ├── inputs.py               # firms.csv and do_not_contact.csv
 │   ├── emails.py               # which published email addresses are collected
 │   ├── privacy.py              # email scrubbing for every other column
+│   ├── unsubscribe.py          # unsubscribed.csv
 │   ├── pipelines.py            # do-not-contact → email scrub → master list → Excel export
 │   ├── master.py               # the master list (data/master.xlsx)
 │   ├── lists.py                # selecting firms for a mailing list

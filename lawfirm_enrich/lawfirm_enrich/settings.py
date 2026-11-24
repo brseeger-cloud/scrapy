@@ -48,6 +48,7 @@ ITEM_PIPELINES = {
 # --- Project settings (override with -s NAME=value or run.py options) -------
 LAWFIRM_INPUT_CSV = "firms.csv"
 LAWFIRM_DNC_CSV = "do_not_contact.csv"
+LAWFIRM_UNSUBSCRIBED_CSV = "unsubscribed.csv"  # email addresses that unsubscribed (optional file)
 LAWFIRM_OUTPUT_XLSX = "output/firms_enriched.xlsx"
 LAWFIRM_FAILED_CSV = "output/failed_sites.csv"
 LAWFIRM_MASTER_XLSX = "data/master.xlsx"  # set to "" to not keep a master list

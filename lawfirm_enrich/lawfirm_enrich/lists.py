@@ -11,6 +11,7 @@ from .inputs import DoNotContactList
 from .items import EMAIL_COLUMNS
 from .master import MasterList, _as_date, _norm, sync_opt_outs
 from .privacy import scrub_emails
+from .unsubscribe import load_unsubscribed, strip_unsubscribed
 
 SIZES = ("Sole", "Small (2-4)", "Larger", "Check manually")
 AREAS = ("conveyancing", "wills_estates", "family", "personal_injury", "commercial", "criminal")
@@ -93,11 +94,18 @@ def make_list(
     *,
     mark_contacted: bool = False,
     today: date | None = None,
+    unsubscribed_path: str | Path | None = None,
 ) -> int:
-    """Write a CSV of firms matching *criteria*; return how many were written."""
+    """Write a CSV of firms matching *criteria*; return how many were written.
+
+    Addresses in *unsubscribed_path* are removed first, so they are never exported.
+    """
     today = today or date.today()
     sync_opt_outs(master_path, dnc_path)
     master = MasterList.load(master_path)
+    unsubscribed = load_unsubscribed(unsubscribed_path)
+    for row in master.rows.values():
+        strip_unsubscribed(row, unsubscribed)
     dnc = DoNotContactList.load(dnc_path)
     rows = select(master, dnc, criteria, today)
 

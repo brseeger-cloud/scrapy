@@ -4,7 +4,8 @@ Order (see ITEM_PIPELINES in settings.py):
 
 1. DoNotContactPipeline – drops any row whose firm is on do_not_contact.csv
    (checked again here, after redirects, even though the spider already
-   skips those firms before crawling).
+   skips those firms before crawling), and removes addresses listed in
+   unsubscribed.csv.
 2. EmailScrubPipeline – removes anything that looks like an email address
    from every field except the email columns.
 3. MasterListPipeline – merges each row into the master list
@@ -29,6 +30,7 @@ from .inputs import DoNotContactList, Firm
 from .items import EMAIL_COLUMNS, FAILED_COLUMNS, OUTPUT_COLUMNS
 from .master import MasterList
 from .privacy import scrub_value
+from .unsubscribe import load_unsubscribed, strip_unsubscribed
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,7 @@ class DoNotContactPipeline:
     def __init__(self, crawler):
         self.crawler = crawler
         self.dnc: DoNotContactList | None = None
+        self.unsubscribed: set[str] | None = None
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -62,6 +65,11 @@ class DoNotContactPipeline:
         if self.dnc.matches_firm(firm, item.get("final_url", ""), *item.get("pages_used", "").split("\n")):
             self.crawler.stats.inc_value("lawfirm/dnc_dropped_in_pipeline")
             raise DropItem(f"Row {item.get('input_row')}: on do-not-contact list")
+        if self.unsubscribed is None:
+            self.unsubscribed = load_unsubscribed(self.crawler.settings.get("LAWFIRM_UNSUBSCRIBED_CSV"))
+        item = dict(item)
+        if strip_unsubscribed(item, self.unsubscribed):
+            self.crawler.stats.inc_value("lawfirm/unsubscribed_addresses_removed")
         return item
 
 
@@ -90,6 +98,9 @@ class MasterListPipeline:
             removed = self.master.remove_do_not_contact(DoNotContactList.load(dnc_path))
             if removed:
                 logger.info(f"Removed {removed} do-not-contact firm(s) from the master list")
+            unsubscribed = load_unsubscribed(self.crawler.settings.get("LAWFIRM_UNSUBSCRIBED_CSV"))
+            for row in self.master.rows.values():
+                strip_unsubscribed(row, unsubscribed)
         return self.master
 
     def process_item(self, item):

@@ -26,6 +26,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--master", default="data/master.xlsx", help="master list (default: data/master.xlsx)")
     parser.add_argument("--dnc", default="do_not_contact.csv", help="do-not-contact CSV")
+    parser.add_argument(
+        "--unsubscribed", default="unsubscribed.csv", help="unsubscribed addresses (default: unsubscribed.csv)"
+    )
     parser.add_argument("--out", default="output/mailing_list.csv", help="CSV to write")
     parser.add_argument(
         "--size",
@@ -89,7 +92,14 @@ def main(argv: list[str] | None = None) -> int:
         require_address=not args.include_no_address,
         general_email_only=args.general_email_only,
     )
-    n = make_list(args.master, args.dnc, args.out, criteria, mark_contacted=args.mark_contacted)
+    n = make_list(
+        args.master,
+        args.dnc,
+        args.out,
+        criteria,
+        mark_contacted=args.mark_contacted,
+        unsubscribed_path=args.unsubscribed,
+    )
     print(f"Wrote {n} firms to {args.out}" + (" and marked them contacted today" if args.mark_contacted and n else ""))
     return 0
 
