@@ -15,8 +15,12 @@ Order (see ITEM_PIPELINES in settings.py):
 
 from __future__ import annotations
 
+import csv
 import logging
+import os
+import shutil
 from datetime import datetime
+from pathlib import Path
 
 from scrapy.exceptions import DropItem
 
@@ -189,3 +193,59 @@ class ExcelExportPipeline:
         )
         csv_path = write_failed_csv(s.get("LAWFIRM_FAILED_CSV"), FAILED_COLUMNS, failed)
         logger.info(f"Wrote {len(rows)} rows to {xlsx}; {len(failed)} failed sites logged to {csv_path}")
+
+
+class WebsiteListPipeline:
+    """Writes websites found by the "websites" spider back into firms.csv.
+
+    The original file is copied to firms.backup-<date-time>.csv first, and the
+    file is rewritten every 200 results so an interrupted run keeps its work.
+    """
+
+    SAVE_EVERY = 200
+
+    def __init__(self, crawler):
+        self.crawler = crawler
+        self.unsaved = 0
+        self.backed_up = False
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler)
+
+    def process_item(self, item):
+        spider = self.crawler.spider
+        row = spider.rows[item["row"]]
+        if item["website"]:
+            row["website"] = item["website"]
+        row["website_found_by"] = item["found_by"]
+        row["website_checked"] = datetime.now().date().isoformat()
+        self.crawler.stats.inc_value(f"websites/{item['found_by'].replace(' ', '_')}")
+        self.unsaved += 1
+        if self.unsaved >= self.SAVE_EVERY:
+            self._save()
+        return item
+
+    def close_spider(self):
+        if self.unsaved:
+            self._save()
+
+    def _save(self):
+        spider = self.crawler.spider
+        path = Path(spider.input_path)
+        if not self.backed_up:
+            backup = path.with_name(f"{path.stem}.backup-{datetime.now():%Y%m%d-%H%M%S}{path.suffix}")
+            shutil.copy2(path, backup)
+            logger.info(f"Backed up {path} to {backup}")
+            self.backed_up = True
+        fieldnames = list(spider.fieldnames)
+        for extra in ("website_found_by", "website_checked"):
+            if extra not in fieldnames:
+                fieldnames.append(extra)
+        tmp = path.with_name(f".{path.name}.tmp")
+        with tmp.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(spider.rows)
+        os.replace(tmp, path)
+        self.unsaved = 0

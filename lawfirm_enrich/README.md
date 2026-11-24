@@ -126,6 +126,39 @@ It's free on data.gov.au (search "ABN Bulk Extract") under a CC BY licence.
 only under a person's own name (e.g. "Jane Citizen") cannot be recognised as a law firm and is
 missed. Street addresses come later, from the firm's website.
 
+### Finding websites
+
+```bash
+python find_websites.py --limit 50   # try it on 50 firms first
+python find_websites.py              # then the rest
+```
+
+For each firm with no website, this guesses domains from its name, for example "Smith & Co
+Lawyers" → `smithcolawyers.com.au`, `smithandco.com.au`, `smith-co-lawyers.com.au`,
+`smithcolawyers.au`. At most 9 guesses are made per firm. Each guessed home page is fetched once,
+obeying robots.txt and with the same user agent, and a site is accepted only if:
+
+| `website_found_by` | Meaning |
+|---|---|
+| `ABN on site` | the page shows the firm's ABN (strongest) |
+| `name on site` | the firm's distinctive name, legal wording, and its postcode or state |
+| `name on site (location unconfirmed)` | name and legal wording, but no address on the home page. Worth a quick look |
+| `not found` | no guess matched |
+
+Parked "domain for sale" pages are rejected, as are pages whose only address is in another state
+(probably a same-named firm elsewhere). Firms that don't use their name as their domain are not
+found; fill those in by hand if they matter.
+
+**How it handles firms.csv:**
+- It's updated in place. A backup (`firms.backup-<date-time>.csv`) is made first, and progress is
+  saved every 200 firms.
+- Rows that already have a website are left alone, and firms on the do-not-contact list are never
+  searched.
+- Firms marked `not found` are skipped next time; use `--recheck-not-found` to retry them.
+
+**Time:** about 17,000 firms take a few hours, since most guesses are quick "domain does not
+exist" failures.
+
 ## Input files
 
 **`firms.csv`** (UTF-8; a header row is required, column order does not matter):
@@ -252,8 +285,8 @@ python make_list.py --channel email --general-email-only --not-contacted-days 90
 
 ### Recommended cycle
 
-1. Build `firms.csv` (see [Building the firm list](#building-the-firm-list)), then run
-   `python run.py`. About 17,000 firms take roughly 3–6
+1. Build `firms.csv` (see [Building the firm list](#building-the-firm-list)), run
+   `find_websites.py`, then run `python run.py`. About 17,000 firms take roughly 3–6
    hours, so run it overnight.
 2. Review the `Check manually` rows in the master list.
 3. Run `make_list.py` for each campaign, with `--mark-contacted`.
@@ -352,6 +385,7 @@ lawfirm_enrich/
 ├── run.py                      # crawl and update the master list
 ├── make_list.py                # export a mailing list from the master list
 ├── build_firm_list.py          # build firms.csv from the ABN Bulk Extract
+├── find_websites.py            # fill in firms' websites
 ├── scrapy.cfg
 ├── firms.csv                   # your input (header only in the repo)
 ├── do_not_contact.csv          # always applied (header only in the repo)
@@ -359,6 +393,7 @@ lawfirm_enrich/
 ├── lawfirm_enrich/
 │   ├── settings.py             # crawl settings
 │   ├── spiders/firms.py        # page discovery and crawling (max 6 pages/site)
+│   ├── spiders/websites.py     # checking guessed domains
 │   ├── extract.py              # text, people/roles, practice areas, addresses, exclusion signals
 │   ├── classify.py             # Sole / Small / Larger / Exclude / Check manually
 │   ├── inputs.py               # firms.csv and do_not_contact.csv
@@ -368,6 +403,7 @@ lawfirm_enrich/
 │   ├── master.py               # the master list (data/master.xlsx)
 │   ├── lists.py                # selecting firms for a mailing list
 │   ├── abr.py                  # reading the ABN Bulk Extract
+│   ├── websites.py             # guessing and verifying firm websites
 │   ├── items.py                # output columns
 │   └── export.py               # xlsx / csv writing
 └── tests/

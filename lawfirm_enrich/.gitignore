@@ -6,3 +6,6 @@ output/
 logs/
 # your master list and outputs hold principals' names (personal information): never commit them
 data/
+
+# backups made by find_websites.py
+firms.backup-*.csv
