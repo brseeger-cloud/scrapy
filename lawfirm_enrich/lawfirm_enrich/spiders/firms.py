@@ -6,7 +6,7 @@ import logging
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 
@@ -25,6 +25,7 @@ from ..classify import classify
 from ..extract import Page, analyse, html_to_lines
 from ..inputs import DoNotContactList, Firm, host_of, read_firms
 from ..items import build_row
+from ..master import MasterList, firm_key, sync_opt_outs
 
 logger = logging.getLogger(__name__)
 
@@ -128,20 +129,34 @@ class FirmsSpider(scrapy.Spider):
         spider.dnc_path = spider.dnc_path or s.get("LAWFIRM_DNC_CSV")
         spider.max_pages = s.getint("LAWFIRM_MAX_PAGES", 6)
         spider.tz = ZoneInfo(s.get("LAWFIRM_TIMEZONE", "Australia/Sydney"))
+        spider.master_path = s.get("LAWFIRM_MASTER_XLSX")
+        spider.skip_days = s.getint("LAWFIRM_SKIP_CRAWLED_WITHIN_DAYS")
         return spider
 
     async def start(self):
         firms = read_firms(self.input_path)
+        if self.master_path:
+            # Firms marked "Opted out" in the master list join the do-not-contact
+            # list before it is loaded below.
+            sync_opt_outs(self.master_path, self.dnc_path)
         self.dnc = DoNotContactList.load(self.dnc_path)
         stats = self.crawler.stats
         stats.set_value("lawfirm/firms_in_input", len(firms))
         logger.info(f"Loaded {len(firms)} firms from {self.input_path}; do-not-contact entries: {len(self.dnc)}")
+
+        recent: dict = {}
+        if self.master_path and self.skip_days > 0:
+            cutoff = datetime.now(self.tz).date() - timedelta(days=self.skip_days)
+            recent = {k: d for k, d in MasterList.load(self.master_path).last_crawled().items() if d > cutoff}
 
         for firm in firms:
             if self.dnc.matches_firm(firm):
                 # Deliberately log only the row number, not the firm's details.
                 stats.inc_value("lawfirm/dnc_excluded")
                 logger.info(f"Row {firm.row}: on do-not-contact list - skipped")
+                continue
+            if firm_key(firm.abn, firm.website, firm.firm_name) in recent:
+                stats.inc_value("lawfirm/skipped_recent")
                 continue
             if not firm.url:
                 stats.inc_value("lawfirm/no_website")

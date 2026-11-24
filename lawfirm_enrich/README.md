@@ -12,7 +12,8 @@ later from PyPI.
 
 For each row of `firms.csv`:
 
-1. **Do-not-contact check.** If the firm's ABN, website domain or name matches `do_not_contact.csv`,
+1. **Do-not-contact check.** If the firm's ABN, website domain or name matches `do_not_contact.csv`
+   (or you marked it "Opted out" in the master list),
    it is skipped: no request is sent and no row is written. The pipeline checks again after
    redirects, so a site that redirects to an excluded domain is also dropped. The run will not start
    if `do_not_contact.csv` is missing.
@@ -88,7 +89,9 @@ Opted Out Lawyers,55 555 555 555,optedout.example,Asked not to be contacted,2026
 ```
 
 - `abn`: spaces are ignored.
-- `website`: matches the domain and its subdomains, with or without `www`.
+- `website`: matches the domain and its subdomains, with or without `www`. Don't use this for
+  a firm whose site is on a shared platform (a Facebook page, a Wix or Google Sites address):
+  it would block every firm on that platform. Use the ABN or name instead.
 - `firm_name`: case, punctuation, `&`/`and` and `Pty Ltd`/`Limited` are ignored.
 
 Any of the three can be left blank on a row. `reason` and `date_added` are for your records. The
@@ -106,6 +109,7 @@ This reads `firms.csv` and `do_not_contact.csv` from the project folder and writ
 |---|---|
 | `output/firms_enriched.xlsx` | sheets **Firms** (one row per firm), **Failed sites**, **Run info** (counts and settings used) |
 | `output/failed_sites.csv` | the same failed-sites log as a CSV |
+| `data/master.xlsx` | the master list, updated by every run (see below) |
 | `logs/crawl_YYYYMMDD_HHMMSS.log` | full Scrapy log |
 
 Options:
@@ -127,6 +131,76 @@ scrapy crawl firms -a input=firms.csv -a dnc=do_not_contact.csv -s LAWFIRM_OUTPU
 ```
 
 If the workbook is open in Excel when the run finishes, it is saved under a timestamped name instead.
+`run.py` refuses to start while the master list is open in Excel; close it first.
+
+### Resuming or refreshing
+
+```bash
+python run.py --skip-crawled-within 1
+```
+
+This skips every firm the master list shows was crawled today, so an interrupted run carries on
+where it stopped. The master list is saved every 1,000 firms. Use a larger number to refresh only
+firms that are due, for example `--skip-crawled-within 90` once a month re-crawls firms last
+crawled more than 90 days ago, plus any new firms in `firms.csv`.
+
+## Master list and mailing lists
+
+`data/master.xlsx` is the long-term record: one row per firm, keyed by ABN (or the website domain,
+or the name, when there is no ABN). Each run adds new firms and updates existing ones.
+
+**Firms sheet**
+- The crawled columns are updated on every run. If a crawl fails, the last good results are kept;
+  only `crawl_status` and `last_crawled` change.
+- The orange columns are yours and are never overwritten:
+  - `my_status`: set it to **Opted out** (or **Do not contact**) and, on the next run or list
+    export, the firm is added to `do_not_contact.csv` and removed from the master list.
+  - `last_contacted`: a date. `make_list.py --mark-contacted` fills it in for you.
+  - `my_notes`: anything you like.
+
+  Columns you add yourself are kept too.
+- `first_seen`, `last_crawled`, `last_successful_crawl` and `last_changed` record when each firm
+  was found, crawled and last changed.
+
+**Changes sheet:** one row per change to a firm's classification, solicitor count, principals,
+address, practice areas or crawl status, with the date. Use it to spot firms that grew, moved or
+closed.
+
+**Making a mailing list**
+
+```bash
+python make_list.py --size Sole "Small (2-4)" --state NSW VIC --area conveyancing wills_estates --not-contacted-days 180 --out output/mailing_list.csv --mark-contacted
+```
+
+| Option | Meaning |
+|---|---|
+| `--size` | classifications to include: `Sole`, `Small (2-4)`, `Larger`, `Check manually` (default: the first three) |
+| `--state` | states to include (default: all) |
+| `--area` | firms doing at least one of these: `conveyancing`, `wills_estates`, `family`, `personal_injury`, `commercial`, `criminal` (default: any) |
+| `--not-contacted-days N` | leave out firms contacted in the last N days |
+| `--include-no-address` | include firms with no postal address found (left out by default) |
+| `--mark-contacted` | set `last_contacted` to today for every firm exported |
+
+The CSV has `firm_name`, `addressee` (the first principal, or "The Principal"), `postal_address`,
+`state`, `postcode`, `classification`, `solicitor_count`, `practice_areas`, `website` and
+`firm_key`. It opens directly in Excel and works with Word mail merge. Firms classified `Exclude`
+and firms on `do_not_contact.csv` are never exported, whatever the options.
+
+### Recommended cycle
+
+1. Put your firm list in `firms.csv` and run `python run.py`. About 17,000 firms take roughly 3–6
+   hours, so run it overnight.
+2. Review the `Check manually` rows in the master list.
+3. Run `make_list.py` for each campaign, with `--mark-contacted`.
+4. Mark opt-outs in `my_status` as they come in.
+5. Monthly or quarterly, run `python run.py --skip-crawled-within 90` to refresh.
+
+### Keep real data out of this repository
+
+This repository is public. `data/`, `output/` and `logs/` are git-ignored because they contain
+principals' names. Do not commit a filled-in `firms.csv` or `do_not_contact.csv` either: the
+second reveals which firms opted out. Keep them outside the repository and pass their paths with
+`--input` and `--dnc`, or simply don't commit your edits.
 
 ### How long it takes
 
@@ -191,15 +265,24 @@ python -m pytest tests
 ```
 
 `tests/test_crawl.py` runs the full pipeline (`run.py`) against small mock websites served on
-localhost (`tests/sites/`). It checks the do-not-contact exclusion (the site gets zero requests),
-robots.txt blocking, the 6-page cap, that no email addresses appear in the output, the
-classifications, and the failed-sites log. No real websites are contacted by the tests.
+localhost (`tests/sites/`). It checks:
+- the do-not-contact exclusion (the site gets zero requests), including opt-outs marked in the
+  master list
+- robots.txt blocking and the 6-page cap
+- that no email addresses appear in the output
+- the classifications and the failed-sites log
+- the master list, and resuming with `--skip-crawled-within`
+
+No real websites are contacted by the tests.
+
+Lint with `ruff check . && ruff format --check .` (rules in `ruff.toml`).
 
 ## Project layout
 
 ```
 lawfirm_enrich/
-├── run.py                      # entry point
+├── run.py                      # crawl and update the master list
+├── make_list.py                # export a mailing list from the master list
 ├── scrapy.cfg
 ├── firms.csv                   # your input (header only in the repo)
 ├── do_not_contact.csv          # always applied (header only in the repo)
@@ -211,7 +294,9 @@ lawfirm_enrich/
 │   ├── classify.py             # Sole / Small / Larger / Exclude / Check manually
 │   ├── inputs.py               # firms.csv and do_not_contact.csv
 │   ├── privacy.py              # email scrubbing
-│   ├── pipelines.py            # do-not-contact → email scrub → Excel export
+│   ├── pipelines.py            # do-not-contact → email scrub → master list → Excel export
+│   ├── master.py               # the master list (data/master.xlsx)
+│   ├── lists.py                # selecting firms for a mailing list
 │   ├── items.py                # output columns
 │   └── export.py               # xlsx / csv writing
 └── tests/

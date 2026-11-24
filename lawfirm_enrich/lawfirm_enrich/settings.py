@@ -41,6 +41,7 @@ LOG_LEVEL = "INFO"
 ITEM_PIPELINES = {
     "lawfirm_enrich.pipelines.DoNotContactPipeline": 100,
     "lawfirm_enrich.pipelines.EmailScrubPipeline": 200,
+    "lawfirm_enrich.pipelines.MasterListPipeline": 800,
     "lawfirm_enrich.pipelines.ExcelExportPipeline": 900,
 }
 
@@ -49,6 +50,8 @@ LAWFIRM_INPUT_CSV = "firms.csv"
 LAWFIRM_DNC_CSV = "do_not_contact.csv"
 LAWFIRM_OUTPUT_XLSX = "output/firms_enriched.xlsx"
 LAWFIRM_FAILED_CSV = "output/failed_sites.csv"
+LAWFIRM_MASTER_XLSX = "data/master.xlsx"  # set to "" to not keep a master list
+LAWFIRM_SKIP_CRAWLED_WITHIN_DAYS = 0  # >0: skip firms the master list shows were crawled recently
 LAWFIRM_MAX_PAGES = 6  # home + about + team/our-people + contact, hard cap per site
 LAWFIRM_TIMEZONE = "Australia/Sydney"  # used for the date_collected column
 

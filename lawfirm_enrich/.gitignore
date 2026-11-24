@@ -4,3 +4,5 @@ __pycache__/
 .pytest_cache/
 output/
 logs/
+# your master list and outputs hold principals' names (personal information): never commit them
+data/

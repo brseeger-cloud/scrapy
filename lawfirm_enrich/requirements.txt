@@ -3,3 +3,4 @@
 openpyxl>=3.1
 tzdata>=2024.1   # time-zone data for date_collected (needed on Windows)
 pytest>=8        # tests only
+ruff==0.17.4     # linting only

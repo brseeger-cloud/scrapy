@@ -50,6 +50,8 @@ def test_full_run(sites, tmp_path):
             str(failed),
             "--log-dir",
             str(tmp_path / "logs"),
+            "--master",
+            str(tmp_path / "master.xlsx"),
             "-s",
             "DOWNLOAD_DELAY=0",
             "-s",
@@ -140,3 +142,80 @@ def test_full_run(sites, tmp_path):
     info = {r[0]: r[1] for r in wb["Run info"].iter_rows(min_row=2, values_only=True)}
     assert info["excluded: on do-not-contact list (not crawled, not in output)"] == 1
     assert info["user agent"] == "LawAuditResearch (audit@lawaudit.com.au)"
+
+    # master list: one row per firm (do-not-contact firm left out)
+    master = load_workbook(tmp_path / "master.xlsx")["Firms"]
+    mh = [c.value for c in master[1]]
+    mrows = {
+        r[mh.index("firm_name")]: dict(zip(mh, r, strict=False)) for r in master.iter_rows(min_row=2, values_only=True)
+    }
+    assert len(mrows) == len(rows) - 1 and "Opted Out Lawyers" not in mrows
+    assert mrows["Example Partners"]["firm_key"] == "abn:22222222222"
+
+
+def test_rerun_skips_recently_crawled_and_syncs_opt_outs(sites, tmp_path):
+    firms = tmp_path / "firms.csv"
+    firms.write_text(
+        "firm_name,abn,entity_type,state,postcode,website\n"
+        f"Small & Co Lawyers,33 333 333 333,Family Partnership,QLD,4000,{sites['small'].url}\n"
+        f"Citizen Legal,11 111 111 111,Individual/Sole Trader,NSW,2124,{sites['sole'].url}\n"
+    )
+    dnc = tmp_path / "dnc.csv"
+    dnc.write_text("firm_name,abn,website,reason,date_added\n")
+    master_path = tmp_path / "master.xlsx"
+
+    def run(*extra):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "run.py"),
+                "--input",
+                str(firms),
+                "--dnc",
+                str(dnc),
+                "--output",
+                str(tmp_path / "out.xlsx"),
+                "--failed-log",
+                str(tmp_path / "failed.csv"),
+                "--log-dir",
+                str(tmp_path / "logs"),
+                "--master",
+                str(master_path),
+                "-s",
+                "DOWNLOAD_DELAY=0",
+                "-s",
+                "AUTOTHROTTLE_ENABLED=False",
+                *extra,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        assert result.returncode == 0, result.stderr
+
+    run()
+    first = len(sites["small"].page_requests)
+    assert first > 0
+
+    # Mark one firm as opted out in the master list, as a user would in Excel
+    wb = load_workbook(master_path)
+    ws = wb["Firms"]
+    header = [c.value for c in ws[1]]
+    for r in ws.iter_rows(min_row=2):
+        if r[header.index("firm_name")].value == "Citizen Legal":
+            r[header.index("my_status")].value = "Opted out"
+        else:
+            r[header.index("my_notes")].value = "called, interested"
+    wb.save(master_path)
+    sole_before = len(sites["sole"].page_requests)
+
+    run("--skip-crawled-within", "1")
+    assert len(sites["small"].page_requests) == first  # crawled today already: skipped
+    assert len(sites["sole"].page_requests) == sole_before  # opted out: never requested again
+    assert "Citizen Legal" in dnc.read_text()
+
+    ws = load_workbook(master_path)["Firms"]
+    header = [c.value for c in ws[1]]
+    remaining = [dict(zip(header, r, strict=False)) for r in ws.iter_rows(min_row=2, values_only=True)]
+    assert [r["firm_name"] for r in remaining] == ["Small & Co Lawyers"]
+    assert remaining[0]["my_notes"] == "called, interested"

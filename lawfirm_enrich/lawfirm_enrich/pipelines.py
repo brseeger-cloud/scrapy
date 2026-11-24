@@ -7,7 +7,9 @@ Order (see ITEM_PIPELINES in settings.py):
    skips those firms before crawling).
 2. EmailScrubPipeline – removes anything that looks like an email address
    from every field.
-3. ExcelExportPipeline – collects rows and writes firms_enriched.xlsx and
+3. MasterListPipeline – merges each row into the master list
+   (data/master.xlsx), saving every 1,000 rows and at the end.
+4. ExcelExportPipeline – collects rows and writes firms_enriched.xlsx and
    failed_sites.csv when the crawl finishes.
 """
 
@@ -21,6 +23,7 @@ from scrapy.exceptions import DropItem
 from .export import write_failed_csv, write_workbook
 from .inputs import DoNotContactList, Firm
 from .items import FAILED_COLUMNS, OUTPUT_COLUMNS
+from .master import MasterList
 from .privacy import scrub_value
 
 logger = logging.getLogger(__name__)
@@ -35,13 +38,12 @@ class DoNotContactPipeline:
     def from_crawler(cls, crawler):
         return cls(crawler)
 
-    def open_spider(self):
-        # Fails the run if the file is missing: exclusion must never be skipped.
-        path = getattr(self.crawler.spider, "dnc_path", None) or self.crawler.settings.get("LAWFIRM_DNC_CSV")
-        self.dnc = DoNotContactList.load(path)
-
     def process_item(self, item):
-        assert self.dnc is not None
+        if self.dnc is None:
+            # Loaded on first use, after the spider has synced opt-outs from the
+            # master list. Fails if the file is missing: exclusion is never skipped.
+            path = getattr(self.crawler.spider, "dnc_path", None) or self.crawler.settings.get("LAWFIRM_DNC_CSV")
+            self.dnc = DoNotContactList.load(path)
         firm = Firm(
             row=0,
             firm_name=item.get("firm_name", ""),
@@ -62,6 +64,47 @@ class DoNotContactPipeline:
 class EmailScrubPipeline:
     def process_item(self, item):
         return scrub_value(dict(item))
+
+
+class MasterListPipeline:
+    SAVE_EVERY = 1000  # rows between saves, so a long run that crashes loses little
+
+    def __init__(self, crawler):
+        self.crawler = crawler
+        self.path = crawler.settings.get("LAWFIRM_MASTER_XLSX")
+        self.master: MasterList | None = None
+        self.unsaved = 0
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler)
+
+    def _master(self) -> MasterList:
+        if self.master is None:
+            self.master = MasterList.load(self.path)
+            dnc_path = getattr(self.crawler.spider, "dnc_path", None) or self.crawler.settings.get("LAWFIRM_DNC_CSV")
+            removed = self.master.remove_do_not_contact(DoNotContactList.load(dnc_path))
+            if removed:
+                logger.info(f"Removed {removed} do-not-contact firm(s) from the master list")
+        return self.master
+
+    def process_item(self, item):
+        if self.path:
+            self._master().upsert(dict(item))
+            self.unsaved += 1
+            if self.unsaved >= self.SAVE_EVERY:
+                self.master.save()
+                self.unsaved = 0
+        return item
+
+    def close_spider(self):
+        if not self.path:
+            return
+        master = self._master()
+        saved = master.save()
+        self.crawler.stats.set_value("lawfirm/master_rows", len(master.rows))
+        self.crawler.stats.set_value("lawfirm/master_path", str(saved))
+        logger.info(f"Master list {saved}: {len(master.rows)} firms")
 
 
 class ExcelExportPipeline:
@@ -113,10 +156,15 @@ class ExcelExportPipeline:
                 "excluded: on do-not-contact list (not crawled, not in output)",
                 stats.get_value("lawfirm/dnc_excluded", 0) + stats.get_value("lawfirm/dnc_dropped_in_pipeline", 0),
             ),
+            (
+                f"skipped: crawled within the last {s.getint('LAWFIRM_SKIP_CRAWLED_WITHIN_DAYS')} days",
+                stats.get_value("lawfirm/skipped_recent", 0),
+            ),
             ("rows written", len(rows)),
             ("sites crawled OK", stats.get_value("lawfirm/sites_ok", 0)),
             ("sites failed", stats.get_value("lawfirm/sites_failed", 0)),
             ("rows with no website", stats.get_value("lawfirm/no_website", 0)),
+            ("master list", s.get("LAWFIRM_MASTER_XLSX") or "(disabled)"),
             *[(f"classified: {k}", v) for k, v in sorted(counts.items())],
             ("user agent", s.get("USER_AGENT")),
             ("ROBOTSTXT_OBEY", s.getbool("ROBOTSTXT_OBEY")),
