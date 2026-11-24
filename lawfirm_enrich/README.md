@@ -1,12 +1,41 @@
 # lawfirm_enrich
 
-A Scrapy project (Python 3.11) that takes a list of Australian law firms, visits a small number of
-pages on each firm's website, and writes an enriched spreadsheet: how many solicitors are listed, the
-principal(s), practice areas, postal address / PO Box, which pages were used, and a size/exclusion
-classification.
+Tools for building and maintaining a marketing list of Australian law firms:
+- build the firm list from the Australian Business Register
+- find each firm's website
+- crawl a few pages per site for its size, principals, practice areas, postal address and
+  published email address
+- keep it all in one master spreadsheet, exporting postal or email lists from it
 
 It needs Python 3.11 or later and Scrapy 2.15 or later (tested with 2.15–2.20 from PyPI, and with
-the Scrapy in this repository).
+the Scrapy in this repository). It runs on your own computer.
+
+## Quick start
+
+1. **Get the code.** Download
+   https://github.com/brseeger-cloud/scrapy/archive/refs/heads/add-lawfirm-enrich.zip (once the
+   pull request is merged, use `master` instead of `add-lawfirm-enrich`), unzip it, and open the
+   `lawfirm_enrich` folder inside.
+2. **Set up (once).** You need Python 3.11 or later from https://www.python.org/downloads/.
+   - Mac/Linux: in a terminal in the `lawfirm_enrich` folder, run `bash setup.sh`.
+   - Windows: double-click `setup.bat`.
+3. **Run the steps** from the `lawfirm_enrich` folder. On Windows use `.venv\Scripts\python`
+   instead of `.venv/bin/python`.
+
+   ```bash
+   .venv/bin/python lawaudit.py status          # where things stand, and what to do next
+   .venv/bin/python lawaudit.py build-list ~/Downloads/public_split_1_10.zip ~/Downloads/public_split_11_20.zip
+   .venv/bin/python lawaudit.py find-websites --limit 50
+   .venv/bin/python lawaudit.py crawl
+   .venv/bin/python lawaudit.py make-list --channel email --out output/email_list.csv
+   .venv/bin/python lawaudit.py unsubscribe ~/Downloads/unsubscribes.csv
+   ```
+
+   Add `--help` after any step for its options. `status` always tells you the next step.
+
+The rest of this README explains each step. The steps are also available as separate scripts:
+`build_firm_list.py`, `find_websites.py`, `run.py` (= `crawl`) and `make_list.py`, which take the
+same options.
 
 ## What it does
 
@@ -81,9 +110,11 @@ time, at least 2 seconds apart.
 
 ## Setup
 
+`setup.sh` (Mac/Linux) and `setup.bat` (Windows) do this for you:
+
 ```bash
 cd lawfirm_enrich
-python3.11 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt   # installs Scrapy from PyPI
 ```
@@ -302,14 +333,14 @@ public repository, like the other files with real data.
 
 ### Recommended cycle
 
-1. Build `firms.csv` (see [Building the firm list](#building-the-firm-list)), run
-   `find_websites.py`, then run `python run.py`. About 17,000 firms take roughly 3–6
-   hours, so run it overnight.
-2. Review the `Check manually` rows in the master list.
-3. Run `make_list.py` for each campaign, with `--mark-contacted`.
+1. `lawaudit.py build-list`, then `find-websites`, then `crawl`. About 17,000 firms take a few
+   hours for websites and roughly 3–6 hours to crawl, so run them overnight.
+2. Review the `Check manually` rows, and websites marked "location unconfirmed", in the master list.
+3. `lawaudit.py make-list … --mark-contacted` for each campaign.
 4. Process unsubscribes at least weekly (`lawaudit.py unsubscribe …`), and mark firms that ask
    not to be contacted at all as "Opted out" in `my_status`.
-5. Monthly or quarterly, run `python run.py --skip-crawled-within 90` to refresh.
+5. Monthly or quarterly: `lawaudit.py crawl --skip-crawled-within 90` to refresh, and
+   `build-list` with a fresh ABN Bulk Extract to pick up new firms.
 
 ### Keep real data out of this repository
 
@@ -400,6 +431,8 @@ Lint with `ruff check . && ruff format --check .` (rules in `ruff.toml`).
 
 ```
 lawfirm_enrich/
+├── lawaudit.py                 # one command for every step (start here)
+├── setup.sh, setup.bat         # one-time setup
 ├── run.py                      # crawl and update the master list
 ├── make_list.py                # export a mailing list from the master list
 ├── build_firm_list.py          # build firms.csv from the ABN Bulk Extract
@@ -418,6 +451,7 @@ lawfirm_enrich/
 │   ├── emails.py               # which published email addresses are collected
 │   ├── privacy.py              # email scrubbing for every other column
 │   ├── unsubscribe.py          # unsubscribed.csv
+│   ├── status.py               # the status report
 │   ├── pipelines.py            # do-not-contact → email scrub → master list → Excel export
 │   ├── master.py               # the master list (data/master.xlsx)
 │   ├── lists.py                # selecting firms for a mailing list
